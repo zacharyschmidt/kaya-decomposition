@@ -8,11 +8,8 @@ from kaya_decomposition.constants import input_variables, kaya_variables
 
 logger = logging.getLogger(__name__)
 
-required_input_variables = [
-    vars(input_variables)[variable_name]
-    for variable_name in dir(input_variables)
-    if not variable_name.startswith("__")
-]
+# Use the explicit list of required variables from input_variables module
+required_input_variables = input_variables.REQUIRED_VARIABLES
 
 
 def compute_kaya_variables(input_data):

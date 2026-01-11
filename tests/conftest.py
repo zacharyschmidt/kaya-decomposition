@@ -95,3 +95,80 @@ def two_scenario_dataframe():
         region="World",
     )
     return scen_a.append(scen_b)
+
+
+@pytest.fixture
+def multi_year_dataframe():
+    """Create test IamDataFrame with multiple years for cumulative LMDI testing.
+
+    Contains data for years 2010, 2020, 2030, 2040, 2050 with realistic
+    growth patterns for testing cumulative LMDI calculations.
+    """
+    data = []
+    base_values = {
+        "Population": 7000,  # million
+        "GDP|PPP": 80,  # trillion USD
+        "GDP|MER": 60,
+        "Final Energy": 400,  # EJ/yr
+        "Primary Energy": 550,
+        "Primary Energy|Coal": 150,
+        "Primary Energy|Gas": 120,
+        "Primary Energy|Oil": 180,
+        "Emissions|CO2|Fossil Fuels and Industry": 35000,  # Mt CO2/yr
+        "Emissions|CO2|Industrial Processes": 2000,
+        "Emissions|CO2|AFOLU": 5000,
+        "Emissions|CO2|Carbon Capture and Storage": 0,
+        "Emissions|CO2|Carbon Capture and Storage|Biomass": 0,
+        "Carbon Sequestration|CCS|Fossil|Energy": 0,
+        "Carbon Sequestration|CCS|Fossil|Industrial Processes": 0,
+        "Carbon Sequestration|CCS|Biomass|Energy": 0,
+        "Carbon Sequestration|CCS|Biomass|Industrial Processes": 0,
+        "Emissions|CH4": 350,  # Mt CH4/yr
+        "Emissions|N2O": 10000,  # kt N2O/yr
+        "Emissions|F-Gases": 1000,  # Mt CO2-equiv/yr
+    }
+
+    # Growth factors per decade
+    growth = {
+        "Population": 1.08,
+        "GDP|PPP": 1.4,
+        "GDP|MER": 1.4,
+        "Final Energy": 1.15,
+        "Primary Energy": 1.12,
+        "Primary Energy|Coal": 1.05,
+        "Primary Energy|Gas": 1.10,
+        "Primary Energy|Oil": 0.98,
+        "Emissions|CO2|Fossil Fuels and Industry": 1.10,
+        "Emissions|CO2|Industrial Processes": 1.05,
+        "Emissions|CO2|AFOLU": 1.02,
+        "Emissions|CH4": 1.03,
+        "Emissions|N2O": 1.02,
+        "Emissions|F-Gases": 1.15,
+    }
+
+    years = [2010, 2020, 2030, 2040, 2050]
+
+    for var, base_val in base_values.items():
+        for i, year in enumerate(years):
+            if var in growth:
+                value = base_val * (growth[var] ** i)
+            else:
+                value = base_val
+            data.append({
+                "model": "TestModel",
+                "scenario": "TestScenario",
+                "region": "World",
+                "variable": var,
+                "unit": "various",
+                "year": year,
+                "value": value,
+            })
+
+    return IamDataFrame(pd.DataFrame(data))
+
+
+@pytest.fixture
+def multi_year_all_sectors_dataframe(multi_year_dataframe):
+    """Extended multi-year data with all variables needed for all-sectors analysis."""
+    # The multi_year_dataframe already includes all needed variables
+    return multi_year_dataframe
