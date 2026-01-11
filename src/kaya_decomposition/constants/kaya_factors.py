@@ -1,0 +1,8 @@
+"""Constants defining Kaya decomposition factor names."""
+
+GNP_per_P = "GNP/P"
+FE_per_GNP = "FE/GNP"
+PEdeq_per_FE = "PEDEq/FE"
+PEFF_per_PEDEq = "PEFF/PEDEq"
+TFC_per_PEFF = "TFC/PEFF"
+NFC_per_TFC = "NFC/TFC"
