@@ -18,7 +18,7 @@ from kaya_decomposition.lmdi_cumulative import (
 )
 
 
-def compute_other_gases_emissions(input_data):
+def compute_other_gases_emissions(input_data, fgas_method="aggregate"):
     """Compute total non-CO2 greenhouse gas emissions in CO2-equivalent.
 
     Converts CH4, N2O, and F-gases to CO2-equivalent using AR6 GWP values.
@@ -26,14 +26,39 @@ def compute_other_gases_emissions(input_data):
     Parameters
     ----------
     input_data : pyam.IamDataFrame
-        Input data containing Emissions|CH4, Emissions|N2O, Emissions|F-Gases.
+        Input data containing Emissions|CH4, Emissions|N2O, and F-gas variables.
+    fgas_method : str, optional
+        Method for computing F-gas contribution:
+        - "aggregate" (default): Use pre-aggregated Emissions|F-Gases variable
+          (assumes already in CO2-equivalent Mt/yr)
+        - "disaggregate": Compute from individual HFC, PFC, SF6 emissions
+          using their specific GWP values
 
     Returns
     -------
     pyam.IamDataFrame
         Total other gases emissions in Mt CO2-equivalent/yr.
         Variable name: "Emissions|Other Gases|CO2-equivalent"
+
+    Notes
+    -----
+    When using fgas_method="disaggregate", the function expects:
+    - Emissions|HFC in kt HFC134a-equivalent/yr
+    - Emissions|PFC in kt CF4-equivalent/yr
+    - Emissions|SF6 in kt SF6/yr
+
+    The GWP values used are from IPCC AR6:
+    - HFC134a: 1530
+    - CF4 (PFC): 7380
+    - SF6: 25200
+
+    The disaggregate method matches the Excel OtherGases sheet calculation.
     """
+    if fgas_method not in ("aggregate", "disaggregate"):
+        raise ValueError(
+            f"fgas_method must be 'aggregate' or 'disaggregate', got '{fgas_method}'"
+        )
+
     data = input_data.data
     result_rows = []
 
@@ -58,13 +83,42 @@ def compute_other_gases_emissions(input_data):
             # N2O in kt/yr, convert to Mt and multiply by GWP
             n2o_co2eq = n2o_data["value"].values[0] * input_variables.GWP_N2O / 1000
 
-        # Get F-gases (already in CO2-equivalent Mt/yr)
-        fgases_data = group_data[
-            group_data["variable"] == input_variables.EMISSIONS_FGASES
-        ]
-        fgases_co2eq = 0.0
-        if len(fgases_data) > 0:
-            fgases_co2eq = fgases_data["value"].values[0]
+        # Compute F-gases based on method
+        if fgas_method == "aggregate":
+            # Get F-gases (already in CO2-equivalent Mt/yr)
+            fgases_data = group_data[
+                group_data["variable"] == input_variables.EMISSIONS_FGASES
+            ]
+            fgases_co2eq = 0.0
+            if len(fgases_data) > 0:
+                fgases_co2eq = fgases_data["value"].values[0]
+        else:
+            # Compute from individual F-gas species
+            # HFC: kt HFC134a-eq → Mt CO2-eq (GWP = 1530, divide by 1000 for kt→Mt)
+            hfc_data = group_data[
+                group_data["variable"] == input_variables.EMISSIONS_HFC
+            ]
+            hfc_co2eq = 0.0
+            if len(hfc_data) > 0:
+                hfc_co2eq = hfc_data["value"].values[0] * input_variables.GWP_HFC134A / 1000
+
+            # PFC: kt CF4-eq → Mt CO2-eq (GWP = 7380)
+            pfc_data = group_data[
+                group_data["variable"] == input_variables.EMISSIONS_PFC
+            ]
+            pfc_co2eq = 0.0
+            if len(pfc_data) > 0:
+                pfc_co2eq = pfc_data["value"].values[0] * input_variables.GWP_CF4 / 1000
+
+            # SF6: kt SF6 → Mt CO2-eq (GWP = 25200)
+            sf6_data = group_data[
+                group_data["variable"] == input_variables.EMISSIONS_SF6
+            ]
+            sf6_co2eq = 0.0
+            if len(sf6_data) > 0:
+                sf6_co2eq = sf6_data["value"].values[0] * input_variables.GWP_SF6 / 1000
+
+            fgases_co2eq = hfc_co2eq + pfc_co2eq + sf6_co2eq
 
         # Total other gases
         total_other_gases = ch4_co2eq + n2o_co2eq + fgases_co2eq
@@ -143,6 +197,84 @@ def compute_industrial_process_emissions(input_data):
             "unit": "Mt CO2/yr",
             "year": year,
             "value": nic,
+        })
+
+    return pyam.IamDataFrame(pd.DataFrame(result_rows))
+
+
+def compute_total_industrial_carbon(input_data):
+    """Compute total (gross) industrial process carbon emissions.
+
+    This is the industrial process emissions before any CCS is applied,
+    representing the total industrial carbon that would be emitted without
+    carbon capture.
+
+    TIC = IP_emissions + CCS_fossil_IP + CCS_biomass_IP
+
+    Note: CCS variables represent carbon that was captured, so adding them
+    back to net emissions gives the gross total.
+
+    Parameters
+    ----------
+    input_data : pyam.IamDataFrame
+        Input data with Industrial Processes emissions and CCS.
+
+    Returns
+    -------
+    pyam.IamDataFrame
+        Total industrial process carbon (TIC) in Mt CO2/yr.
+        Variable name: "Total Industrial Carbon"
+
+    See Also
+    --------
+    compute_industrial_process_emissions : Computes net industrial carbon (after CCS)
+    """
+    data = input_data.data
+    result_rows = []
+
+    # Get unique model/scenario/region/year combinations
+    groupby_cols = ["model", "scenario", "region", "year"]
+    groups = data.groupby(groupby_cols)
+
+    for group_key, group_data in groups:
+        model, scenario, region, year = group_key
+
+        # Get industrial process emissions (net, as reported)
+        ip_data = group_data[
+            group_data["variable"] == input_variables.EMISSIONS_CO2_INDUSTRIAL_PROCESSES
+        ]
+        ip_emissions = 0.0
+        if len(ip_data) > 0:
+            ip_emissions = ip_data["value"].values[0]
+
+        # Get CCS from fossil industrial processes
+        ccs_fossil_ip = group_data[
+            group_data["variable"] == input_variables.CCS_FOSSIL_INDUSTRY
+        ]
+        ccs_fossil = 0.0
+        if len(ccs_fossil_ip) > 0:
+            ccs_fossil = ccs_fossil_ip["value"].values[0]
+
+        # Get CCS from biomass industrial processes
+        ccs_biomass_ip = group_data[
+            group_data["variable"] == input_variables.CCS_BIOMASS_INDUSTRY
+        ]
+        ccs_biomass = 0.0
+        if len(ccs_biomass_ip) > 0:
+            ccs_biomass = ccs_biomass_ip["value"].values[0]
+
+        # Total industrial carbon = net emissions + all CCS
+        # This represents gross emissions before any carbon capture
+        tic = ip_emissions + ccs_fossil + ccs_biomass
+
+        result_rows.append({
+            "model": model,
+            "scenario": scenario,
+            "region": region,
+            "variable": "Total Industrial Carbon",
+            "unit": "Mt CO2/yr",
+            "year": year,
+            "value": tic,
         })
 
     return pyam.IamDataFrame(pd.DataFrame(result_rows))

@@ -54,6 +54,138 @@ class TestComputeOtherGasesEmissions:
         output_years = set(result.data["year"].unique())
         assert input_years == output_years
 
+    def test_invalid_fgas_method_raises_error(self, multi_year_all_sectors_dataframe):
+        """Test that invalid fgas_method raises ValueError."""
+        with pytest.raises(ValueError, match="fgas_method must be"):
+            compute_other_gases_emissions(
+                multi_year_all_sectors_dataframe,
+                fgas_method="invalid"
+            )
+
+    def test_disaggregate_fgas_method(self):
+        """Test disaggregated F-gas calculation."""
+        # Create test data with individual F-gas species
+        data = pd.DataFrame([
+            {
+                "model": "Test",
+                "scenario": "Test",
+                "region": "World",
+                "variable": "Emissions|CH4",
+                "unit": "Mt CH4/yr",
+                "year": 2020,
+                "value": 100,  # 100 Mt CH4
+            },
+            {
+                "model": "Test",
+                "scenario": "Test",
+                "region": "World",
+                "variable": "Emissions|N2O",
+                "unit": "kt N2O/yr",
+                "year": 2020,
+                "value": 1000,  # 1000 kt N2O
+            },
+            {
+                "model": "Test",
+                "scenario": "Test",
+                "region": "World",
+                "variable": "Emissions|HFC",
+                "unit": "kt HFC134a-equiv/yr",
+                "year": 2020,
+                "value": 100,  # 100 kt HFC134a-eq
+            },
+            {
+                "model": "Test",
+                "scenario": "Test",
+                "region": "World",
+                "variable": "Emissions|PFC",
+                "unit": "kt CF4-equiv/yr",
+                "year": 2020,
+                "value": 10,  # 10 kt CF4-eq
+            },
+            {
+                "model": "Test",
+                "scenario": "Test",
+                "region": "World",
+                "variable": "Emissions|SF6",
+                "unit": "kt SF6/yr",
+                "year": 2020,
+                "value": 5,  # 5 kt SF6
+            },
+        ])
+        test_df = IamDataFrame(data)
+
+        result = compute_other_gases_emissions(test_df, fgas_method="disaggregate")
+        total = result.filter(year=2020).data["value"].values[0]
+
+        # Expected calculation:
+        # CH4: 100 Mt × 27.9 = 2790 Mt CO2-eq
+        # N2O: 1000 kt × 273 / 1000 = 273 Mt CO2-eq
+        # HFC: 100 kt × 1530 / 1000 = 153 Mt CO2-eq
+        # PFC: 10 kt × 7380 / 1000 = 73.8 Mt CO2-eq
+        # SF6: 5 kt × 25200 / 1000 = 126 Mt CO2-eq
+        # Total = 2790 + 273 + 153 + 73.8 + 126 = 3415.8 Mt CO2-eq
+        expected = (
+            100 * input_variables.GWP_CH4 +      # CH4
+            1000 * input_variables.GWP_N2O / 1000 +  # N2O
+            100 * input_variables.GWP_HFC134A / 1000 +  # HFC
+            10 * input_variables.GWP_CF4 / 1000 +    # PFC
+            5 * input_variables.GWP_SF6 / 1000       # SF6
+        )
+
+        assert np.isclose(total, expected, rtol=1e-6), \
+            f"Expected {expected:.1f}, got {total:.1f}"
+
+    def test_aggregate_matches_when_fgases_precomputed(self):
+        """Test that aggregate method uses pre-aggregated F-gases."""
+        # Create test data with pre-aggregated F-gases
+        data = pd.DataFrame([
+            {
+                "model": "Test",
+                "scenario": "Test",
+                "region": "World",
+                "variable": "Emissions|CH4",
+                "unit": "Mt CH4/yr",
+                "year": 2020,
+                "value": 100,
+            },
+            {
+                "model": "Test",
+                "scenario": "Test",
+                "region": "World",
+                "variable": "Emissions|N2O",
+                "unit": "kt N2O/yr",
+                "year": 2020,
+                "value": 1000,
+            },
+            {
+                "model": "Test",
+                "scenario": "Test",
+                "region": "World",
+                "variable": "Emissions|F-Gases",
+                "unit": "Mt CO2-equiv/yr",
+                "year": 2020,
+                "value": 500,  # Pre-aggregated F-gases in CO2-eq
+            },
+        ])
+        test_df = IamDataFrame(data)
+
+        result = compute_other_gases_emissions(test_df, fgas_method="aggregate")
+        total = result.filter(year=2020).data["value"].values[0]
+
+        # Expected calculation:
+        # CH4: 100 Mt × 27.9 = 2790 Mt CO2-eq
+        # N2O: 1000 kt × 273 / 1000 = 273 Mt CO2-eq
+        # F-gases: 500 Mt CO2-eq (already aggregated)
+        # Total = 2790 + 273 + 500 = 3563 Mt CO2-eq
+        expected = (
+            100 * input_variables.GWP_CH4 +
+            1000 * input_variables.GWP_N2O / 1000 +
+            500  # Pre-aggregated F-gases
+        )
+
+        assert np.isclose(total, expected, rtol=1e-6), \
+            f"Expected {expected:.1f}, got {total:.1f}"
+
 
 class TestComputeIndustrialProcessEmissions:
     """Tests for industrial process emissions calculation."""
@@ -107,6 +239,125 @@ class TestComputeIndustrialProcessEmissions:
 
         # Net Industrial Carbon = 1000 - 200 - 100 = 700
         assert np.isclose(nic, 700)
+
+
+class TestComputeTotalIndustrialCarbon:
+    """Tests for total industrial carbon (TIC) calculation."""
+
+    def test_returns_iamdataframe(self, multi_year_all_sectors_dataframe):
+        """Test that function returns an IamDataFrame."""
+        from kaya_decomposition.all_sectors import compute_total_industrial_carbon
+        result = compute_total_industrial_carbon(multi_year_all_sectors_dataframe)
+        assert isinstance(result, IamDataFrame)
+
+    def test_output_variable_name(self, multi_year_all_sectors_dataframe):
+        """Test that output has correct variable name."""
+        from kaya_decomposition.all_sectors import compute_total_industrial_carbon
+        result = compute_total_industrial_carbon(multi_year_all_sectors_dataframe)
+        assert "Total Industrial Carbon" in result.variable
+
+    def test_adds_ccs_to_gross(self):
+        """Test that CCS is added back to get gross emissions."""
+        from kaya_decomposition.all_sectors import compute_total_industrial_carbon
+        # Create test data with CCS
+        data = pd.DataFrame([
+            {
+                "model": "Test",
+                "scenario": "Test",
+                "region": "World",
+                "variable": "Emissions|CO2|Industrial Processes",
+                "unit": "Mt CO2/yr",
+                "year": 2020,
+                "value": 1000,
+            },
+            {
+                "model": "Test",
+                "scenario": "Test",
+                "region": "World",
+                "variable": "Carbon Sequestration|CCS|Fossil|Industrial Processes",
+                "unit": "Mt CO2/yr",
+                "year": 2020,
+                "value": 200,
+            },
+            {
+                "model": "Test",
+                "scenario": "Test",
+                "region": "World",
+                "variable": "Carbon Sequestration|CCS|Biomass|Industrial Processes",
+                "unit": "Mt CO2/yr",
+                "year": 2020,
+                "value": 100,
+            },
+        ])
+        test_df = IamDataFrame(data)
+
+        result = compute_total_industrial_carbon(test_df)
+        tic = result.filter(year=2020).data["value"].values[0]
+
+        # Total Industrial Carbon = 1000 + 200 + 100 = 1300
+        assert np.isclose(tic, 1300)
+
+    def test_tic_equals_nic_when_no_ccs(self, multi_year_all_sectors_dataframe):
+        """Test that TIC equals NIC when there's no CCS."""
+        from kaya_decomposition.all_sectors import compute_total_industrial_carbon
+        # The multi_year fixture has no CCS, so TIC should equal NIC
+        tic_result = compute_total_industrial_carbon(multi_year_all_sectors_dataframe)
+        nic_result = compute_industrial_process_emissions(multi_year_all_sectors_dataframe)
+
+        for year in [2020, 2030, 2040, 2050]:
+            tic = tic_result.filter(year=year).data["value"].values[0]
+            nic = nic_result.filter(year=year).data["value"].values[0]
+            assert np.isclose(tic, nic), \
+                f"Year {year}: TIC {tic} should equal NIC {nic} when no CCS"
+
+    def test_tic_minus_nic_equals_twice_ccs(self):
+        """Test that TIC - NIC = 2 * CCS.
+
+        Since TIC = IP + CCS and NIC = IP - CCS, their difference is 2*CCS.
+        """
+        from kaya_decomposition.all_sectors import compute_total_industrial_carbon
+        # Create test data with CCS
+        data = pd.DataFrame([
+            {
+                "model": "Test",
+                "scenario": "Test",
+                "region": "World",
+                "variable": "Emissions|CO2|Industrial Processes",
+                "unit": "Mt CO2/yr",
+                "year": 2020,
+                "value": 1000,
+            },
+            {
+                "model": "Test",
+                "scenario": "Test",
+                "region": "World",
+                "variable": "Carbon Sequestration|CCS|Fossil|Industrial Processes",
+                "unit": "Mt CO2/yr",
+                "year": 2020,
+                "value": 200,
+            },
+            {
+                "model": "Test",
+                "scenario": "Test",
+                "region": "World",
+                "variable": "Carbon Sequestration|CCS|Biomass|Industrial Processes",
+                "unit": "Mt CO2/yr",
+                "year": 2020,
+                "value": 100,
+            },
+        ])
+        test_df = IamDataFrame(data)
+
+        tic_result = compute_total_industrial_carbon(test_df)
+        nic_result = compute_industrial_process_emissions(test_df)
+
+        tic = tic_result.filter(year=2020).data["value"].values[0]
+        nic = nic_result.filter(year=2020).data["value"].values[0]
+
+        # TIC - NIC = 2 * total CCS
+        total_ccs = 200 + 100  # fossil + biomass CCS
+        assert np.isclose(tic - nic, 2 * total_ccs), \
+            f"TIC ({tic}) - NIC ({nic}) should equal 2*CCS ({2*total_ccs})"
 
 
 class TestComputeLandUseEmissions:
