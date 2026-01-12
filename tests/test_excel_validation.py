@@ -694,3 +694,1218 @@ class TestLmdiFormulaVerification:
 
         assert np.isclose(total_corrected, tfc_diff, rtol=1e-6), \
             f"Corrected sum {total_corrected} should equal TFC diff {tfc_diff}"
+
+
+# ============================================================================
+# Grubler LED (MESSAGE-GLOBIOM 1.0) Validation Tests
+# ============================================================================
+
+@pytest.fixture
+def grubler_led_input_data():
+    """Create IamDataFrame with data from Grubler LED Excel workbook.
+
+    Data from MESSAGE-GLOBIOM 1.0 model, SSP2-Baseline scenario, World region.
+    """
+    years = [2005, 2010, 2020, 2030, 2040, 2050, 2060, 2070, 2080, 2090, 2100]
+
+    excel_data = {
+        "Emissions|CH4": {
+            2005: 334.271352, 2010: 326.531223, 2020: 345.345696, 2030: 373.120315,
+            2040: 393.495094, 2050: 411.433368, 2060: 425.590158, 2070: 433.325307,
+            2080: 436.418434, 2090: 434.124764, 2100: 422.184960
+        },
+        "Carbon Sequestration|CCS": {
+            2005: 0.0, 2010: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0,
+            2060: 0.0, 2070: 0.0, 2080: 0.0, 2090: 0.0, 2100: 0.0
+        },
+        "Carbon Sequestration|CCS|Biomass": {
+            2005: 0.0, 2010: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0,
+            2060: 0.0, 2070: 0.0, 2080: 0.0, 2090: 0.0, 2100: 0.0
+        },
+        "Emissions|CO2|Fossil Fuels and Industry": {
+            2005: 30874.045870, 2010: 33133.194490, 2020: 37148.024860, 2030: 42507.302020,
+            2040: 47740.715230, 2050: 53614.470790, 2060: 59467.087800, 2070: 65089.404510,
+            2080: 74067.977700, 2090: 81276.948460, 2100: 86165.767690
+        },
+        "Emissions|CO2|AFOLU": {
+            2005: 6894.948483, 2010: 7161.443786, 2020: 5114.400392, 2030: 4220.248626,
+            2040: 3865.736274, 2050: 3037.158405, 2060: 1935.181211, 2070: 907.574490,
+            2080: 65.651580, 2090: -248.571578, 2100: -481.563298
+        },
+        "Emissions|F-Gases": {
+            2005: 547.935667, 2010: 733.216000, 2020: 1513.746667, 2030: 1967.713000,
+            2040: 2425.001333, 2050: 2891.570000, 2060: 3382.067333, 2070: 4019.301000,
+            2080: 4693.663333, 2090: 5370.698667, 2100: 6061.700333
+        },
+        "Emissions|N2O": {
+            2005: 8285.950394, 2010: 8758.082323, 2020: 9742.624059, 2030: 10959.871950,
+            2040: 11930.028090, 2050: 12689.417910, 2060: 13157.974240, 2070: 13459.985630,
+            2080: 13872.232000, 2090: 14478.796370, 2100: 15094.255170
+        },
+        "Final Energy": {
+            2005: 323.037000, 2010: 361.844000, 2020: 440.328000, 2030: 519.287000,
+            2040: 587.166000, 2050: 643.931000, 2060: 694.289000, 2070: 745.930000,
+            2080: 815.125000, 2090: 891.559000, 2100: 973.842000
+        },
+        "GDP|PPP": {
+            2005: 62186.080000, 2010: 74281.680000, 2020: 111368.950000, 2030: 157376.670000,
+            2040: 204550.060000, 2050: 254430.220000, 2060: 308566.940000, 2070: 370533.350000,
+            2080: 438348.020000, 2090: 512431.150000, 2100: 593265.640000
+        },
+        "Population": {
+            2005: 6503.130000, 2010: 6867.390000, 2020: 7611.250000, 2030: 8261.990000,
+            2040: 8787.120000, 2050: 9169.110000, 2060: 9384.700000, 2070: 9456.880000,
+            2080: 9407.260000, 2090: 9253.950000, 2100: 9032.420000
+        },
+        "Primary Energy": {
+            2005: 464.437000, 2010: 500.994000, 2020: 580.427000, 2030: 666.837000,
+            2040: 750.798000, 2050: 842.360000, 2060: 930.688000, 2070: 1011.424000,
+            2080: 1113.153000, 2090: 1209.922000, 2100: 1304.254000
+        },
+        "Primary Energy|Coal": {
+            2005: 121.299000, 2010: 139.734000, 2020: 143.771000, 2030: 165.472000,
+            2040: 181.068000, 2050: 207.174000, 2060: 250.856000, 2070: 291.864000,
+            2080: 337.997000, 2090: 361.485000, 2100: 359.087000
+        },
+        "Primary Energy|Gas": {
+            2005: 100.458000, 2010: 105.695000, 2020: 123.415000, 2030: 154.965000,
+            2040: 196.716000, 2050: 241.180000, 2060: 278.050000, 2070: 308.866000,
+            2080: 321.546000, 2090: 326.319000, 2100: 347.225000
+        },
+        "Primary Energy|Oil": {
+            2005: 172.612000, 2010: 173.120000, 2020: 207.262000, 2030: 225.758000,
+            2040: 240.699000, 2050: 246.088000, 2060: 227.252000, 2070: 208.025000,
+            2080: 232.741000, 2090: 270.059000, 2100: 298.609000
+        },
+        "GDP|MER": {
+            2005: 0.0, 2010: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0,
+            2060: 0.0, 2070: 0.0, 2080: 0.0, 2090: 0.0, 2100: 0.0
+        },
+        "Emissions|CO2|Industrial Processes": {
+            2005: 1260.644396, 2010: 1619.645168, 2020: 1846.389532, 2030: 2014.854928,
+            2040: 2097.197930, 2050: 2292.768161, 2060: 2535.193404, 2070: 2635.362466,
+            2080: 2885.114173, 2090: 3324.231903, 2100: 3714.655956
+        },
+        "Carbon Sequestration|CCS|Fossil|Industrial Processes": {
+            2005: 0.0, 2010: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0,
+            2060: 0.0, 2070: 0.0, 2080: 0.0, 2090: 0.0, 2100: 0.0
+        },
+        "Carbon Sequestration|CCS|Fossil|Energy": {
+            2005: 0.0, 2010: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0,
+            2060: 0.0, 2070: 0.0, 2080: 0.0, 2090: 0.0, 2100: 0.0
+        },
+        "Carbon Sequestration|CCS|Biomass|Energy": {
+            2005: 0.0, 2010: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0,
+            2060: 0.0, 2070: 0.0, 2080: 0.0, 2090: 0.0, 2100: 0.0
+        },
+        "Carbon Sequestration|CCS|Biomass|Industrial Processes": {
+            2005: 0.0, 2010: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0,
+            2060: 0.0, 2070: 0.0, 2080: 0.0, 2090: 0.0, 2100: 0.0
+        },
+    }
+
+    units = {
+        "Emissions|CH4": "Mt CH4/yr",
+        "Carbon Sequestration|CCS": "Mt CO2/yr",
+        "Carbon Sequestration|CCS|Biomass": "Mt CO2/yr",
+        "Emissions|CO2|Fossil Fuels and Industry": "Mt CO2/yr",
+        "Emissions|CO2|AFOLU": "Mt CO2/yr",
+        "Emissions|F-Gases": "Mt CO2/yr",
+        "Emissions|N2O": "kt N2O/yr",
+        "Final Energy": "EJ/yr",
+        "GDP|PPP": "billion USD_2005/yr",
+        "Population": "million",
+        "Primary Energy": "EJ/yr",
+        "Primary Energy|Coal": "EJ/yr",
+        "Primary Energy|Gas": "EJ/yr",
+        "Primary Energy|Oil": "EJ/yr",
+        "GDP|MER": "billion USD_2005/yr",
+        "Emissions|CO2|Industrial Processes": "Mt CO2/yr",
+        "Carbon Sequestration|CCS|Fossil|Industrial Processes": "Mt CO2/yr",
+        "Carbon Sequestration|CCS|Fossil|Energy": "Mt CO2/yr",
+        "Carbon Sequestration|CCS|Biomass|Energy": "Mt CO2/yr",
+        "Carbon Sequestration|CCS|Biomass|Industrial Processes": "Mt CO2/yr",
+    }
+
+    rows = []
+    for variable, year_values in excel_data.items():
+        for year, value in year_values.items():
+            rows.append({
+                "model": "MESSAGE-GLOBIOM 1.0",
+                "scenario": "SSP2-Baseline",
+                "region": "World",
+                "variable": variable,
+                "unit": units[variable],
+                "year": year,
+                "value": value,
+            })
+
+    for year in years:
+        rows.append({
+            "model": "MESSAGE-GLOBIOM 1.0",
+            "scenario": "SSP2-Baseline",
+            "region": "World",
+            "variable": "Emissions|CO2|Carbon Capture and Storage",
+            "unit": "Mt CO2/yr",
+            "year": year,
+            "value": 0.0,
+        })
+        rows.append({
+            "model": "MESSAGE-GLOBIOM 1.0",
+            "scenario": "SSP2-Baseline",
+            "region": "World",
+            "variable": "Emissions|CO2|Carbon Capture and Storage|Biomass",
+            "unit": "Mt CO2/yr",
+            "year": year,
+            "value": 0.0,
+        })
+
+    return IamDataFrame(pd.DataFrame(rows))
+
+
+# Expected values from Grubler LED Excel
+GRUBLER_KAYA_RATIOS = {
+    # GNP/P: Excel shows US$2005/person, library gives thousand USD/person
+    "GNP/P": {2020: 14.632149778, 2030: 19.048276505, 2050: 27.748627729, 2100: 65.681803991},
+    # FE/GNP: Excel shows EJ per trillion USD, library gives EJ per billion USD
+    "FE/GNP": {2020: 0.003953777, 2030: 0.003299644, 2050: 0.002530875, 2100: 0.001641494},
+    # Dimensionless ratios
+    "PEDEq/FE": {2020: 1.318170, 2030: 1.284140, 2050: 1.308153, 2100: 1.339287},
+    "PEFF/PEDEq": {2020: 0.817412, 2030: 0.819083, 2050: 0.824400, 2100: 0.770495},
+    # TFC/PEFF in Mt CO2/EJ
+    "TFC/PEFF": {2020: 74.405700, 2030: 74.135514, 2050: 73.903512, 2100: 82.047357},
+    "NFC/TFC": {2020: 1.0, 2030: 1.0, 2050: 1.0, 2100: 1.0},
+}
+
+GRUBLER_TFC_VALUES = {
+    2010: 31513.549322,
+    2020: 35301.635328,
+    2030: 40492.447092,
+    2050: 51321.702629,
+    2100: 82451.111734,
+}
+
+GRUBLER_PEFF_VALUES = {
+    2010: 418.549000,
+    2020: 474.448000,
+    2030: 546.195000,
+    2050: 694.442000,
+    2100: 1004.921000,
+}
+
+
+class TestGrublerLedKayaVariables:
+    """Test Kaya variables calculation against Grubler LED Excel."""
+
+    def test_tfc_calculation(self, grubler_led_input_data):
+        """Test TFC calculation matches Excel."""
+        kaya_vars = compute_kaya_variables(grubler_led_input_data)
+        assert kaya_vars is not None
+
+        tfc_data = kaya_vars.filter(variable=kaya_var_names.TFC).data
+
+        for year, expected in GRUBLER_TFC_VALUES.items():
+            actual = tfc_data[tfc_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-5), \
+                f"TFC mismatch at year {year}: expected {expected}, got {actual}"
+
+    def test_primary_energy_fossil(self, grubler_led_input_data):
+        """Test PEFF calculation matches Excel."""
+        kaya_vars = compute_kaya_variables(grubler_led_input_data)
+        assert kaya_vars is not None
+
+        peff_data = kaya_vars.filter(variable=kaya_var_names.PRIMARY_ENERGY_FF).data
+
+        for year, expected in GRUBLER_PEFF_VALUES.items():
+            actual = peff_data[peff_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-5), \
+                f"PEFF mismatch at year {year}: expected {expected}, got {actual}"
+
+
+class TestGrublerLedKayaFactors:
+    """Test Kaya factors calculation against Grubler LED Excel."""
+
+    def test_gnp_per_p(self, grubler_led_input_data):
+        """Test GNP/P calculation matches Excel."""
+        kaya_vars = compute_kaya_variables(grubler_led_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+
+        gnp_per_p_data = factors.filter(variable=kaya_factor_names.GNP_per_P).data
+
+        for year, expected in GRUBLER_KAYA_RATIOS["GNP/P"].items():
+            actual = gnp_per_p_data[gnp_per_p_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-4), \
+                f"GNP/P mismatch at year {year}: expected {expected}, got {actual}"
+
+    def test_fe_per_gnp(self, grubler_led_input_data):
+        """Test FE/GNP calculation matches Excel."""
+        kaya_vars = compute_kaya_variables(grubler_led_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+
+        fe_per_gnp_data = factors.filter(variable=kaya_factor_names.FE_per_GNP).data
+
+        for year, expected in GRUBLER_KAYA_RATIOS["FE/GNP"].items():
+            actual = fe_per_gnp_data[fe_per_gnp_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-4), \
+                f"FE/GNP mismatch at year {year}: expected {expected}, got {actual}"
+
+    def test_tfc_per_peff(self, grubler_led_input_data):
+        """Test TFC/PEFF calculation matches Excel."""
+        kaya_vars = compute_kaya_variables(grubler_led_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+
+        tfc_per_peff_data = factors.filter(variable=kaya_factor_names.TFC_per_PEFF).data
+
+        for year, expected in GRUBLER_KAYA_RATIOS["TFC/PEFF"].items():
+            actual = tfc_per_peff_data[tfc_per_peff_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-4), \
+                f"TFC/PEFF mismatch at year {year}: expected {expected}, got {actual}"
+
+
+class TestGrublerLedLmdi:
+    """Test LMDI decomposition against Grubler LED Excel."""
+
+    def test_contributions_sum_to_tfc_diff(self, grubler_led_input_data):
+        """Test that LMDI contributions sum to TFC difference from base year."""
+        kaya_vars = compute_kaya_variables(grubler_led_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+        result = compute_lmdi_cumulative(factors, base_year=2020)
+
+        tfc = factors.filter(variable=kaya_var_names.TFC)
+        tfc_base = tfc.filter(year=2020).data["value"].values[0]
+
+        for year in [2030, 2050, 2100]:
+            tfc_year = tfc.filter(year=year).data["value"].values[0]
+            tfc_diff = tfc_year - tfc_base
+
+            year_data = result.filter(year=year).data
+            contribution_sum = year_data["value"].sum()
+
+            assert np.isclose(contribution_sum, tfc_diff, rtol=1e-6), \
+                f"Year {year}: sum={contribution_sum}, tfc_diff={tfc_diff}"
+
+    def test_base_year_contributions_are_zero(self, grubler_led_input_data):
+        """Test that all LMDI contributions are zero at the base year."""
+        kaya_vars = compute_kaya_variables(grubler_led_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+        result = compute_lmdi_cumulative(factors, base_year=2020)
+
+        base_year_data = result.filter(year=2020).data
+        assert np.allclose(base_year_data["value"], 0, atol=1e-10)
+
+
+# ============================================================================
+# Rockstrom MESSAGE (GEA) Validation Tests
+# ============================================================================
+
+@pytest.fixture
+def rockstrom_message_input_data():
+    """Create IamDataFrame with data from Rockstrom MESSAGE Excel workbook.
+
+    Data from GEA model, geah_counterfactual scenario, World region.
+    """
+    years = [2005, 2010, 2020, 2030, 2040, 2050, 2060, 2070, 2080, 2090, 2100]
+
+    excel_data = {
+        "Emissions|CH4": {
+            2005: 239.430961, 2010: 260.064049, 2020: 305.983549, 2030: 310.985637,
+            2040: 366.021873, 2050: 405.085676, 2060: 436.588490, 2070: 458.320176,
+            2080: 454.522804, 2090: 438.764980, 2100: 416.164941
+        },
+        "Carbon Sequestration|CCS": {
+            2005: 0.0, 2010: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0,
+            2060: 0.0, 2070: 0.0, 2080: 0.0, 2090: 0.0, 2100: 0.0
+        },
+        "Carbon Sequestration|CCS|Biomass": {
+            2005: 0.0, 2010: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0,
+            2060: 0.0, 2070: 0.0, 2080: 0.0, 2090: 0.0, 2100: 0.0
+        },
+        "Emissions|CO2|Fossil Fuels and Industry": {
+            2005: 28924.203000, 2010: 31130.847000, 2020: 40678.836000, 2030: 50255.612000,
+            2040: 62035.380000, 2050: 74049.818333, 2060: 88096.895333, 2070: 98969.662000,
+            2080: 101736.158333, 2090: 105186.381667, 2100: 104519.569000
+        },
+        "Emissions|CO2|AFOLU": {
+            2005: 3774.906667, 2010: 3589.806000, 2020: 3242.389333, 2030: 2770.929333,
+            2040: 2212.543667, 2050: 1579.321333, 2060: 881.958000, 2070: 128.395667,
+            2080: -673.808667, 2090: -1518.495000, 2100: -2400.995667
+        },
+        "Emissions|F-Gases": {
+            2005: 583.444885, 2010: 791.127793, 2020: 1144.180705, 2030: 1350.440240,
+            2040: 1563.632528, 2050: 1720.753521, 2060: 1803.748969, 2070: 1856.978072,
+            2080: 1901.656626, 2090: 1952.137284, 2100: 1989.888560
+        },
+        "Emissions|N2O": {
+            2005: 11919.631991, 2010: 12605.421700, 2020: 14761.975391, 2030: 16308.595078,
+            2040: 17852.224832, 2050: 18985.101790, 2060: 19636.365772, 2070: 20257.644295,
+            2080: 20491.892617, 2090: 21045.903803, 2100: 21484.648770
+        },
+        "Final Energy": {
+            2005: 342.340000, 2010: 367.370000, 2020: 455.843000, 2030: 533.184000,
+            2040: 640.891000, 2050: 739.079000, 2060: 846.995000, 2070: 943.855000,
+            2080: 1013.378000, 2090: 1105.572000, 2100: 1172.934000
+        },
+        "GDP|PPP": {
+            2005: 62084.678222, 2010: 73282.960996, 2020: 102851.030470, 2030: 136576.211831,
+            2040: 173423.080406, 2050: 212799.809069, 2060: 252797.452157, 2070: 290300.933984,
+            2080: 324034.371234, 2090: 355603.391962, 2100: 388860.220820
+        },
+        "Population": {
+            2005: 6508.740598, 2010: 6904.986039, 2020: 7670.824846, 2030: 8304.610015,
+            2040: 8796.711160, 2050: 9145.376915, 2060: 9477.963396, 2070: 9644.085693,
+            2080: 9672.889367, 2090: 9598.446195, 2100: 9485.876871
+        },
+        "Primary Energy": {
+            2005: 449.985600, 2010: 475.190180, 2020: 598.200120, 2030: 712.569290,
+            2040: 861.963980, 2050: 1037.855480, 2060: 1242.767560, 2070: 1414.602630,
+            2080: 1533.516760, 2090: 1672.554750, 2100: 1772.454540
+        },
+        "Primary Energy|Coal": {
+            2005: 121.267000, 2010: 139.559000, 2020: 169.631000, 2030: 217.521000,
+            2040: 289.322000, 2050: 377.448000, 2060: 478.487000, 2070: 544.792000,
+            2080: 536.802000, 2090: 489.307000, 2100: 424.951000
+        },
+        "Primary Energy|Gas": {
+            2005: 101.043000, 2010: 100.458000, 2020: 126.572000, 2030: 156.862000,
+            2040: 180.310000, 2050: 215.380000, 2060: 262.172000, 2070: 288.225000,
+            2080: 330.901000, 2090: 370.990000, 2100: 395.569000
+        },
+        "Primary Energy|Oil": {
+            2005: 163.876000, 2010: 164.970000, 2020: 233.466000, 2030: 268.716000,
+            2040: 304.829000, 2050: 318.393000, 2060: 338.998000, 2070: 379.703000,
+            2080: 394.513000, 2090: 470.445000, 2100: 525.704000
+        },
+        "GDP|MER": {
+            2005: 0.0, 2010: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0,
+            2060: 0.0, 2070: 0.0, 2080: 0.0, 2090: 0.0, 2100: 0.0
+        },
+        "Emissions|CO2|Industrial Processes": {
+            2005: 1260.644396, 2010: 1619.645168, 2020: 1846.389532, 2030: 2014.854928,
+            2040: 2097.197930, 2050: 2292.768161, 2060: 2535.193404, 2070: 2635.362466,
+            2080: 2885.114173, 2090: 3324.231903, 2100: 3714.655956
+        },
+        "Carbon Sequestration|CCS|Fossil|Industrial Processes": {
+            2005: 0.0, 2010: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0,
+            2060: 0.0, 2070: 0.0, 2080: 0.0, 2090: 0.0, 2100: 0.0
+        },
+        "Carbon Sequestration|CCS|Fossil|Energy": {
+            2005: 0.0, 2010: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0,
+            2060: 0.0, 2070: 0.0, 2080: 0.0, 2090: 0.0, 2100: 0.0
+        },
+        "Carbon Sequestration|CCS|Biomass|Energy": {
+            2005: 0.0, 2010: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0,
+            2060: 0.0, 2070: 0.0, 2080: 0.0, 2090: 0.0, 2100: 0.0
+        },
+        "Carbon Sequestration|CCS|Biomass|Industrial Processes": {
+            2005: 0.0, 2010: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0,
+            2060: 0.0, 2070: 0.0, 2080: 0.0, 2090: 0.0, 2100: 0.0
+        },
+    }
+
+    units = {
+        "Emissions|CH4": "Mt CH4/yr",
+        "Carbon Sequestration|CCS": "Mt CO2/yr",
+        "Carbon Sequestration|CCS|Biomass": "Mt CO2/yr",
+        "Emissions|CO2|Fossil Fuels and Industry": "Mt CO2/yr",
+        "Emissions|CO2|AFOLU": "Mt CO2/yr",
+        "Emissions|F-Gases": "Mt CO2/yr",
+        "Emissions|N2O": "kt N2O/yr",
+        "Final Energy": "EJ/yr",
+        "GDP|PPP": "billion USD_2005/yr",
+        "Population": "million",
+        "Primary Energy": "EJ/yr",
+        "Primary Energy|Coal": "EJ/yr",
+        "Primary Energy|Gas": "EJ/yr",
+        "Primary Energy|Oil": "EJ/yr",
+        "GDP|MER": "billion USD_2005/yr",
+        "Emissions|CO2|Industrial Processes": "Mt CO2/yr",
+        "Carbon Sequestration|CCS|Fossil|Industrial Processes": "Mt CO2/yr",
+        "Carbon Sequestration|CCS|Fossil|Energy": "Mt CO2/yr",
+        "Carbon Sequestration|CCS|Biomass|Energy": "Mt CO2/yr",
+        "Carbon Sequestration|CCS|Biomass|Industrial Processes": "Mt CO2/yr",
+    }
+
+    rows = []
+    for variable, year_values in excel_data.items():
+        for year, value in year_values.items():
+            rows.append({
+                "model": "GEA",
+                "scenario": "geah_counterfactual",
+                "region": "World",
+                "variable": variable,
+                "unit": units[variable],
+                "year": year,
+                "value": value,
+            })
+
+    for year in years:
+        rows.append({
+            "model": "GEA",
+            "scenario": "geah_counterfactual",
+            "region": "World",
+            "variable": "Emissions|CO2|Carbon Capture and Storage",
+            "unit": "Mt CO2/yr",
+            "year": year,
+            "value": 0.0,
+        })
+        rows.append({
+            "model": "GEA",
+            "scenario": "geah_counterfactual",
+            "region": "World",
+            "variable": "Emissions|CO2|Carbon Capture and Storage|Biomass",
+            "unit": "Mt CO2/yr",
+            "year": year,
+            "value": 0.0,
+        })
+
+    return IamDataFrame(pd.DataFrame(rows))
+
+
+# Expected values from Rockstrom MESSAGE Excel
+ROCKSTROM_KAYA_RATIOS = {
+    # GNP/P: Excel shows US$2010/person, library gives thousand USD/person
+    "GNP/P": {2020: 13.408079644, 2030: 16.445830880, 2050: 23.268566298, 2100: 40.993597756},
+    # FE/GNP: Excel shows EJ per trillion USD, library gives EJ per billion USD
+    "FE/GNP": {2020: 0.004432070, 2030: 0.003903930, 2050: 0.003473119, 2100: 0.003016338},
+    # Dimensionless ratios
+    "PEDEq/FE": {2020: 1.312294, 2030: 1.336442, 2050: 1.404255, 2100: 1.511129},
+    "PEFF/PEDEq": {2020: 0.885438, 2030: 0.902507, 2050: 0.877984, 2100: 0.759525},
+    # TFC/PEFF in Mt CO2/EJ
+    "TFC/PEFF": {2020: 73.314554, 2030: 75.012956, 2050: 78.748240, 2100: 74.879747},
+    "NFC/TFC": {2020: 1.0, 2030: 1.0, 2050: 1.0, 2100: 1.0},
+}
+
+ROCKSTROM_TFC_VALUES = {
+    2010: 29511.201832,
+    2020: 38832.446468,
+    2030: 48240.757072,
+    2050: 71757.050173,
+    2100: 100804.913044,
+}
+
+ROCKSTROM_PEFF_VALUES = {
+    2010: 404.987000,
+    2020: 529.669000,
+    2030: 643.099000,
+    2050: 911.221000,
+    2100: 1346.224000,
+}
+
+
+class TestRockstromMessageKayaVariables:
+    """Test Kaya variables calculation against Rockstrom MESSAGE Excel."""
+
+    def test_tfc_calculation(self, rockstrom_message_input_data):
+        """Test TFC calculation matches Excel."""
+        kaya_vars = compute_kaya_variables(rockstrom_message_input_data)
+        assert kaya_vars is not None
+
+        tfc_data = kaya_vars.filter(variable=kaya_var_names.TFC).data
+
+        for year, expected in ROCKSTROM_TFC_VALUES.items():
+            actual = tfc_data[tfc_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-5), \
+                f"TFC mismatch at year {year}: expected {expected}, got {actual}"
+
+    def test_primary_energy_fossil(self, rockstrom_message_input_data):
+        """Test PEFF calculation matches Excel."""
+        kaya_vars = compute_kaya_variables(rockstrom_message_input_data)
+        assert kaya_vars is not None
+
+        peff_data = kaya_vars.filter(variable=kaya_var_names.PRIMARY_ENERGY_FF).data
+
+        for year, expected in ROCKSTROM_PEFF_VALUES.items():
+            actual = peff_data[peff_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-5), \
+                f"PEFF mismatch at year {year}: expected {expected}, got {actual}"
+
+
+class TestRockstromMessageKayaFactors:
+    """Test Kaya factors calculation against Rockstrom MESSAGE Excel."""
+
+    def test_gnp_per_p(self, rockstrom_message_input_data):
+        """Test GNP/P calculation matches Excel."""
+        kaya_vars = compute_kaya_variables(rockstrom_message_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+
+        gnp_per_p_data = factors.filter(variable=kaya_factor_names.GNP_per_P).data
+
+        for year, expected in ROCKSTROM_KAYA_RATIOS["GNP/P"].items():
+            actual = gnp_per_p_data[gnp_per_p_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-4), \
+                f"GNP/P mismatch at year {year}: expected {expected}, got {actual}"
+
+    def test_tfc_per_peff(self, rockstrom_message_input_data):
+        """Test TFC/PEFF calculation matches Excel."""
+        kaya_vars = compute_kaya_variables(rockstrom_message_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+
+        tfc_per_peff_data = factors.filter(variable=kaya_factor_names.TFC_per_PEFF).data
+
+        for year, expected in ROCKSTROM_KAYA_RATIOS["TFC/PEFF"].items():
+            actual = tfc_per_peff_data[tfc_per_peff_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-4), \
+                f"TFC/PEFF mismatch at year {year}: expected {expected}, got {actual}"
+
+
+class TestRockstromMessageLmdi:
+    """Test LMDI decomposition against Rockstrom MESSAGE Excel."""
+
+    def test_contributions_sum_to_tfc_diff(self, rockstrom_message_input_data):
+        """Test that LMDI contributions sum to TFC difference from base year."""
+        kaya_vars = compute_kaya_variables(rockstrom_message_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+        result = compute_lmdi_cumulative(factors, base_year=2020)
+
+        tfc = factors.filter(variable=kaya_var_names.TFC)
+        tfc_base = tfc.filter(year=2020).data["value"].values[0]
+
+        for year in [2030, 2050, 2100]:
+            tfc_year = tfc.filter(year=year).data["value"].values[0]
+            tfc_diff = tfc_year - tfc_base
+
+            year_data = result.filter(year=year).data
+            contribution_sum = year_data["value"].sum()
+
+            assert np.isclose(contribution_sum, tfc_diff, rtol=1e-6), \
+                f"Year {year}: sum={contribution_sum}, tfc_diff={tfc_diff}"
+
+
+# ============================================================================
+# Rogelj 2018 AIM (AIM/CGE 2.0) Validation Tests
+# ============================================================================
+
+@pytest.fixture
+def rogelj_aim_input_data():
+    """Create IamDataFrame with data from Rogelj 2018 AIM Excel workbook.
+
+    Data from AIM/CGE 2.0 model, SSP2-Baseline scenario, World region.
+    """
+    years = [2005, 2010, 2020, 2030, 2040, 2050, 2060, 2070, 2080, 2090, 2100]
+
+    excel_data = {
+        "Emissions|CH4": {
+            2005: 350.272300, 2010: 373.314500, 2020: 422.556800, 2030: 469.396100,
+            2040: 510.485600, 2050: 546.822700, 2060: 580.768700, 2070: 608.943100,
+            2080: 630.776600, 2090: 646.056400, 2100: 656.901500
+        },
+        "Carbon Sequestration|CCS": {
+            2005: 0.0, 2010: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0,
+            2060: 0.0, 2070: 0.0, 2080: 0.0, 2090: 0.0, 2100: 0.0
+        },
+        "Carbon Sequestration|CCS|Biomass": {
+            2005: 0.0, 2010: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0,
+            2060: 0.0, 2070: 0.0, 2080: 0.0, 2090: 0.0, 2100: 0.0
+        },
+        "Emissions|CO2|Fossil Fuels and Industry": {
+            2005: 29596.083800, 2010: 32494.788500, 2020: 39854.844100, 2030: 46944.982000,
+            2040: 52928.699600, 2050: 56939.432000, 2060: 58994.532800, 2070: 61391.424100,
+            2080: 63901.584300, 2090: 67041.407000, 2100: 69902.560500
+        },
+        "Emissions|CO2|AFOLU": {
+            2005: 4777.850700, 2010: 5880.752200, 2020: 5938.165200, 2030: 4766.347800,
+            2040: 3759.369700, 2050: 2867.101800, 2060: 2839.266500, 2070: 2287.407400,
+            2080: 1737.976600, 2090: 1272.172700, 2100: 809.223000
+        },
+        "Emissions|F-Gases": {
+            2005: 532.363300, 2010: 748.077100, 2020: 1161.161600, 2030: 1360.277900,
+            2040: 1602.043500, 2050: 1871.035000, 2060: 2118.849400, 2070: 2417.741000,
+            2080: 2698.774800, 2090: 3004.685400, 2100: 3295.918100
+        },
+        "Emissions|N2O": {
+            2005: 8950.427900, 2010: 9610.691100, 2020: 11021.856800, 2030: 12402.347500,
+            2040: 13632.739800, 2050: 14711.866200, 2060: 15585.454100, 2070: 16331.514300,
+            2080: 16918.983900, 2090: 17356.942600, 2100: 17627.457100
+        },
+        "Final Energy": {
+            2005: 334.160800, 2010: 357.319800, 2020: 423.439800, 2030: 484.708800,
+            2040: 536.238200, 2050: 573.311400, 2060: 600.857700, 2070: 628.362100,
+            2080: 650.329100, 2090: 667.494100, 2100: 680.805900
+        },
+        "GDP|PPP": {
+            2005: 60200.927270, 2010: 71299.268810, 2020: 108046.218200, 2030: 153517.100000,
+            2040: 200121.900000, 2050: 249496.500000, 2060: 303091.800000, 2070: 364178.100000,
+            2080: 431031.700000, 2090: 503959.500000, 2100: 583232.100000
+        },
+        "Population": {
+            2005: 6490.987900, 2010: 6879.589600, 2020: 7623.657200, 2030: 8273.401100,
+            2040: 8795.520100, 2050: 9172.310400, 2060: 9380.920800, 2070: 9442.846700,
+            2080: 9383.005500, 2090: 9220.279500, 2100: 8990.633100
+        },
+        "Primary Energy": {
+            2005: 448.286100, 2010: 488.228000, 2020: 591.460700, 2030: 691.445400,
+            2040: 779.254300, 2050: 845.001100, 2060: 890.988500, 2070: 940.381200,
+            2080: 988.039500, 2090: 1035.727000, 2100: 1079.226800
+        },
+        "Primary Energy|Coal": {
+            2005: 118.245600, 2010: 135.023300, 2020: 172.144200, 2030: 209.451000,
+            2040: 243.897500, 2050: 268.240100, 2060: 269.569100, 2070: 277.591400,
+            2080: 296.399500, 2090: 332.639700, 2100: 369.308400
+        },
+        "Primary Energy|Gas": {
+            2005: 98.723600, 2010: 106.290800, 2020: 128.528400, 2030: 150.959800,
+            2040: 168.712600, 2050: 182.418900, 2060: 200.255600, 2070: 215.688800,
+            2080: 226.778900, 2090: 233.110300, 2100: 242.806100
+        },
+        "Primary Energy|Oil": {
+            2005: 164.251500, 2010: 176.300400, 2020: 212.391000, 2030: 244.991300,
+            2040: 270.303000, 2050: 282.973500, 2060: 293.474900, 2070: 302.135200,
+            2080: 301.645000, 2090: 291.891200, 2100: 273.207400
+        },
+        "GDP|MER": {
+            2005: 0.0, 2010: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0,
+            2060: 0.0, 2070: 0.0, 2080: 0.0, 2090: 0.0, 2100: 0.0
+        },
+        "Emissions|CO2|Industrial Processes": {
+            2005: 1260.644396, 2010: 1619.645168, 2020: 1846.389532, 2030: 2014.854928,
+            2040: 2097.197930, 2050: 2292.768161, 2060: 2535.193404, 2070: 2635.362466,
+            2080: 2885.114173, 2090: 3324.231903, 2100: 3714.655956
+        },
+        "Carbon Sequestration|CCS|Fossil|Industrial Processes": {
+            2005: 0.0, 2010: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0,
+            2060: 0.0, 2070: 0.0, 2080: 0.0, 2090: 0.0, 2100: 0.0
+        },
+        "Carbon Sequestration|CCS|Fossil|Energy": {
+            2005: 0.0, 2010: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0,
+            2060: 0.0, 2070: 0.0, 2080: 0.0, 2090: 0.0, 2100: 0.0
+        },
+        "Carbon Sequestration|CCS|Biomass|Energy": {
+            2005: 0.0, 2010: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0,
+            2060: 0.0, 2070: 0.0, 2080: 0.0, 2090: 0.0, 2100: 0.0
+        },
+        "Carbon Sequestration|CCS|Biomass|Industrial Processes": {
+            2005: 0.0, 2010: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0,
+            2060: 0.0, 2070: 0.0, 2080: 0.0, 2090: 0.0, 2100: 0.0
+        },
+    }
+
+    units = {
+        "Emissions|CH4": "Mt CH4/yr",
+        "Carbon Sequestration|CCS": "Mt CO2/yr",
+        "Carbon Sequestration|CCS|Biomass": "Mt CO2/yr",
+        "Emissions|CO2|Fossil Fuels and Industry": "Mt CO2/yr",
+        "Emissions|CO2|AFOLU": "Mt CO2/yr",
+        "Emissions|F-Gases": "Mt CO2/yr",
+        "Emissions|N2O": "kt N2O/yr",
+        "Final Energy": "EJ/yr",
+        "GDP|PPP": "billion USD_2005/yr",
+        "Population": "million",
+        "Primary Energy": "EJ/yr",
+        "Primary Energy|Coal": "EJ/yr",
+        "Primary Energy|Gas": "EJ/yr",
+        "Primary Energy|Oil": "EJ/yr",
+        "GDP|MER": "billion USD_2005/yr",
+        "Emissions|CO2|Industrial Processes": "Mt CO2/yr",
+        "Carbon Sequestration|CCS|Fossil|Industrial Processes": "Mt CO2/yr",
+        "Carbon Sequestration|CCS|Fossil|Energy": "Mt CO2/yr",
+        "Carbon Sequestration|CCS|Biomass|Energy": "Mt CO2/yr",
+        "Carbon Sequestration|CCS|Biomass|Industrial Processes": "Mt CO2/yr",
+    }
+
+    rows = []
+    for variable, year_values in excel_data.items():
+        for year, value in year_values.items():
+            rows.append({
+                "model": "AIM/CGE 2.0",
+                "scenario": "SSP2-Baseline",
+                "region": "World",
+                "variable": variable,
+                "unit": units[variable],
+                "year": year,
+                "value": value,
+            })
+
+    for year in years:
+        rows.append({
+            "model": "AIM/CGE 2.0",
+            "scenario": "SSP2-Baseline",
+            "region": "World",
+            "variable": "Emissions|CO2|Carbon Capture and Storage",
+            "unit": "Mt CO2/yr",
+            "year": year,
+            "value": 0.0,
+        })
+        rows.append({
+            "model": "AIM/CGE 2.0",
+            "scenario": "SSP2-Baseline",
+            "region": "World",
+            "variable": "Emissions|CO2|Carbon Capture and Storage|Biomass",
+            "unit": "Mt CO2/yr",
+            "year": year,
+            "value": 0.0,
+        })
+
+    return IamDataFrame(pd.DataFrame(rows))
+
+
+# Expected values from Rogelj AIM Excel
+ROGELJ_KAYA_RATIOS = {
+    # GNP/P: Excel shows US$2010/person, library gives thousand USD/person
+    "GNP/P": {2020: 14.172491675, 2030: 18.555500712, 2050: 27.201052856, 2100: 64.871082327},
+    # FE/GNP: Excel shows EJ per trillion USD, library gives EJ per billion USD
+    "FE/GNP": {2020: 0.003919062, 2030: 0.003157360, 2050: 0.002297874, 2100: 0.001167298},
+    # Dimensionless ratios
+    "PEDEq/FE": {2020: 1.396800, 2030: 1.426517, 2050: 1.473896, 2100: 1.585220},
+    "PEFF/PEDEq": {2020: 0.867452, 2030: 0.875560, 2050: 0.868203, 2100: 0.820330},
+    # TFC/PEFF in Mt CO2/EJ
+    "TFC/PEFF": {2020: 74.081370, 2030: 74.215347, 2050: 74.487790, 2100: 74.761400},
+    "NFC/TFC": {2020: 1.0, 2030: 1.0, 2050: 1.0, 2100: 1.0},
+}
+
+ROGELJ_TFC_VALUES = {
+    2010: 30875.143332,
+    2020: 38008.454568,
+    2030: 44930.127072,
+    2050: 54646.663839,
+    2100: 66187.904544,
+}
+
+ROGELJ_PEFF_VALUES = {
+    2010: 417.614500,
+    2020: 513.063600,
+    2030: 605.402100,
+    2050: 733.632500,
+    2100: 885.321900,
+}
+
+
+class TestRogeljAimKayaVariables:
+    """Test Kaya variables calculation against Rogelj AIM Excel."""
+
+    def test_tfc_calculation(self, rogelj_aim_input_data):
+        """Test TFC calculation matches Excel."""
+        kaya_vars = compute_kaya_variables(rogelj_aim_input_data)
+        assert kaya_vars is not None
+
+        tfc_data = kaya_vars.filter(variable=kaya_var_names.TFC).data
+
+        for year, expected in ROGELJ_TFC_VALUES.items():
+            actual = tfc_data[tfc_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-5), \
+                f"TFC mismatch at year {year}: expected {expected}, got {actual}"
+
+    def test_primary_energy_fossil(self, rogelj_aim_input_data):
+        """Test PEFF calculation matches Excel."""
+        kaya_vars = compute_kaya_variables(rogelj_aim_input_data)
+        assert kaya_vars is not None
+
+        peff_data = kaya_vars.filter(variable=kaya_var_names.PRIMARY_ENERGY_FF).data
+
+        for year, expected in ROGELJ_PEFF_VALUES.items():
+            actual = peff_data[peff_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-5), \
+                f"PEFF mismatch at year {year}: expected {expected}, got {actual}"
+
+
+class TestRogeljAimKayaFactors:
+    """Test Kaya factors calculation against Rogelj AIM Excel."""
+
+    def test_gnp_per_p(self, rogelj_aim_input_data):
+        """Test GNP/P calculation matches Excel."""
+        kaya_vars = compute_kaya_variables(rogelj_aim_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+
+        gnp_per_p_data = factors.filter(variable=kaya_factor_names.GNP_per_P).data
+
+        for year, expected in ROGELJ_KAYA_RATIOS["GNP/P"].items():
+            actual = gnp_per_p_data[gnp_per_p_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-4), \
+                f"GNP/P mismatch at year {year}: expected {expected}, got {actual}"
+
+    def test_tfc_per_peff(self, rogelj_aim_input_data):
+        """Test TFC/PEFF calculation matches Excel."""
+        kaya_vars = compute_kaya_variables(rogelj_aim_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+
+        tfc_per_peff_data = factors.filter(variable=kaya_factor_names.TFC_per_PEFF).data
+
+        for year, expected in ROGELJ_KAYA_RATIOS["TFC/PEFF"].items():
+            actual = tfc_per_peff_data[tfc_per_peff_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-4), \
+                f"TFC/PEFF mismatch at year {year}: expected {expected}, got {actual}"
+
+
+class TestRogeljAimLmdi:
+    """Test LMDI decomposition against Rogelj AIM Excel."""
+
+    def test_contributions_sum_to_tfc_diff(self, rogelj_aim_input_data):
+        """Test that LMDI contributions sum to TFC difference from base year."""
+        kaya_vars = compute_kaya_variables(rogelj_aim_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+        result = compute_lmdi_cumulative(factors, base_year=2020)
+
+        tfc = factors.filter(variable=kaya_var_names.TFC)
+        tfc_base = tfc.filter(year=2020).data["value"].values[0]
+
+        for year in [2030, 2050, 2100]:
+            tfc_year = tfc.filter(year=year).data["value"].values[0]
+            tfc_diff = tfc_year - tfc_base
+
+            year_data = result.filter(year=year).data
+            contribution_sum = year_data["value"].sum()
+
+            assert np.isclose(contribution_sum, tfc_diff, rtol=1e-6), \
+                f"Year {year}: sum={contribution_sum}, tfc_diff={tfc_diff}"
+
+
+# ============================================================================
+# Teske 2019 Validation Tests
+# ============================================================================
+
+@pytest.fixture
+def teske_input_data():
+    """Create IamDataFrame with data from Teske 2019 Excel workbook.
+
+    Data from Teske model, Reference (5C) scenario, World region.
+    Note: Teske data only covers years 2015-2050.
+    """
+    years = [2015, 2020, 2030, 2040, 2050]
+
+    excel_data = {
+        "Emissions|CH4": {
+            2015: 388.070000, 2020: 382.090000, 2030: 392.270000, 2040: 418.070000, 2050: 419.270000
+        },
+        "Carbon Sequestration|CCS": {
+            2015: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0
+        },
+        "Carbon Sequestration|CCS|Biomass": {
+            2015: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0
+        },
+        "Emissions|CO2|Fossil Fuels and Industry": {
+            2015: 33832.909091, 2020: 35093.636364, 2030: 39446.181818, 2040: 44305.363636, 2050: 47298.818182
+        },
+        "Emissions|CO2|AFOLU": {
+            2015: 3486.500000, 2020: 3046.100000, 2030: 2679.100000, 2040: 2679.100000, 2050: 2275.400000
+        },
+        "Emissions|F-Gases": {
+            2015: 1500.046620, 2020: 1622.175710, 2030: 1808.908630, 2040: 2069.311330, 2050: 2231.668300
+        },
+        "Emissions|N2O": {
+            2015: 6930.000000, 2020: 7040.000000, 2030: 7490.000000, 2040: 7850.000000, 2050: 8080.000000
+        },
+        "Final Energy": {
+            2015: 376.891000, 2020: 407.012000, 2030: 472.401000, 2040: 535.258000, 2050: 585.793000
+        },
+        "GDP|PPP": {
+            2015: 115108.000000, 2020: 136578.000000, 2030: 196715.000000, 2040: 266801.000000, 2050: 346236.000000
+        },
+        "Population": {
+            2015: 7383.000000, 2020: 7795.000000, 2030: 8551.000000, 2040: 9210.000000, 2050: 9772.000000
+        },
+        "Primary Energy": {
+            2015: 534.680000, 2020: 567.740000, 2030: 652.035000, 2040: 739.014000, 2050: 799.481000
+        },
+        "Primary Energy|Coal": {
+            2015: 158.854000, 2020: 163.349000, 2030: 182.883000, 2040: 206.259000, 2050: 216.401000
+        },
+        "Primary Energy|Gas": {
+            2015: 116.588000, 2020: 125.852000, 2030: 150.376000, 2040: 178.206000, 2050: 198.869000
+        },
+        "Primary Energy|Oil": {
+            2015: 140.740000, 2020: 147.280000, 2030: 160.928000, 2040: 173.672000, 2050: 179.552000
+        },
+        "GDP|MER": {
+            2015: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0
+        },
+        "Emissions|CO2|Industrial Processes": {
+            2015: 2650.909091, 2020: 2743.636364, 2030: 3098.181818, 2040: 3496.363636, 2050: 3771.818182
+        },
+        "Carbon Sequestration|CCS|Fossil|Industrial Processes": {
+            2015: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0
+        },
+        "Carbon Sequestration|CCS|Fossil|Energy": {
+            2015: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0
+        },
+        "Carbon Sequestration|CCS|Biomass|Energy": {
+            2015: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0
+        },
+        "Carbon Sequestration|CCS|Biomass|Industrial Processes": {
+            2015: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0
+        },
+    }
+
+    units = {
+        "Emissions|CH4": "Mt CH4/yr",
+        "Carbon Sequestration|CCS": "Mt CO2/yr",
+        "Carbon Sequestration|CCS|Biomass": "Mt CO2/yr",
+        "Emissions|CO2|Fossil Fuels and Industry": "Mt CO2/yr",
+        "Emissions|CO2|AFOLU": "Mt CO2/yr",
+        "Emissions|F-Gases": "Mt CO2/yr",
+        "Emissions|N2O": "kt N2O/yr",
+        "Final Energy": "EJ/yr",
+        "GDP|PPP": "billion USD_2005/yr",
+        "Population": "million",
+        "Primary Energy": "EJ/yr",
+        "Primary Energy|Coal": "EJ/yr",
+        "Primary Energy|Gas": "EJ/yr",
+        "Primary Energy|Oil": "EJ/yr",
+        "GDP|MER": "billion USD_2005/yr",
+        "Emissions|CO2|Industrial Processes": "Mt CO2/yr",
+        "Carbon Sequestration|CCS|Fossil|Industrial Processes": "Mt CO2/yr",
+        "Carbon Sequestration|CCS|Fossil|Energy": "Mt CO2/yr",
+        "Carbon Sequestration|CCS|Biomass|Energy": "Mt CO2/yr",
+        "Carbon Sequestration|CCS|Biomass|Industrial Processes": "Mt CO2/yr",
+    }
+
+    rows = []
+    for variable, year_values in excel_data.items():
+        for year, value in year_values.items():
+            rows.append({
+                "model": "Teske",
+                "scenario": "Reference (5C)",
+                "region": "World",
+                "variable": variable,
+                "unit": units[variable],
+                "year": year,
+                "value": value,
+            })
+
+    for year in years:
+        rows.append({
+            "model": "Teske",
+            "scenario": "Reference (5C)",
+            "region": "World",
+            "variable": "Emissions|CO2|Carbon Capture and Storage",
+            "unit": "Mt CO2/yr",
+            "year": year,
+            "value": 0.0,
+        })
+        rows.append({
+            "model": "Teske",
+            "scenario": "Reference (5C)",
+            "region": "World",
+            "variable": "Emissions|CO2|Carbon Capture and Storage|Biomass",
+            "unit": "Mt CO2/yr",
+            "year": year,
+            "value": 0.0,
+        })
+
+    return IamDataFrame(pd.DataFrame(rows))
+
+
+# Expected values from Teske Excel
+TESKE_KAYA_RATIOS = {
+    # GNP/P: Excel shows US$2005/person, library gives thousand USD/person
+    "GNP/P": {2020: 17.521231559, 2030: 23.004911706, 2050: 35.431436758},
+    # FE/GNP: Excel shows EJ per trillion USD, library gives EJ per billion USD
+    "FE/GNP": {2020: 0.002980070, 2030: 0.002401449, 2050: 0.001691889},
+    # Dimensionless ratios
+    "PEDEq/FE": {2020: 1.394897, 2030: 1.380257, 2050: 1.364784},
+    "PEFF/PEDEq": {2020: 0.768804, 2030: 0.757915, 2050: 0.744010},
+    # TFC/PEFF in Mt CO2/EJ
+    "TFC/PEFF": {2020: 74.115483, 2030: 73.551105, 2050: 73.176513},
+    "NFC/TFC": {2020: 1.0, 2030: 1.0, 2050: 1.0},
+}
+
+TESKE_TFC_VALUES = {
+    2015: 31182.000000,
+    2020: 32350.000000,
+    2030: 36348.000000,
+    2050: 43527.000000,
+}
+
+TESKE_PEFF_VALUES = {
+    2015: 416.182000,
+    2020: 436.481000,
+    2030: 494.187000,
+    2050: 594.822000,
+}
+
+
+class TestTeskeKayaVariables:
+    """Test Kaya variables calculation against Teske Excel."""
+
+    def test_tfc_calculation(self, teske_input_data):
+        """Test TFC calculation matches Excel."""
+        kaya_vars = compute_kaya_variables(teske_input_data)
+        assert kaya_vars is not None
+
+        tfc_data = kaya_vars.filter(variable=kaya_var_names.TFC).data
+
+        for year, expected in TESKE_TFC_VALUES.items():
+            actual = tfc_data[tfc_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-5), \
+                f"TFC mismatch at year {year}: expected {expected}, got {actual}"
+
+    def test_primary_energy_fossil(self, teske_input_data):
+        """Test PEFF calculation matches Excel."""
+        kaya_vars = compute_kaya_variables(teske_input_data)
+        assert kaya_vars is not None
+
+        peff_data = kaya_vars.filter(variable=kaya_var_names.PRIMARY_ENERGY_FF).data
+
+        for year, expected in TESKE_PEFF_VALUES.items():
+            actual = peff_data[peff_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-5), \
+                f"PEFF mismatch at year {year}: expected {expected}, got {actual}"
+
+
+class TestTeskeKayaFactors:
+    """Test Kaya factors calculation against Teske Excel."""
+
+    def test_gnp_per_p(self, teske_input_data):
+        """Test GNP/P calculation matches Excel."""
+        kaya_vars = compute_kaya_variables(teske_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+
+        gnp_per_p_data = factors.filter(variable=kaya_factor_names.GNP_per_P).data
+
+        for year, expected in TESKE_KAYA_RATIOS["GNP/P"].items():
+            actual = gnp_per_p_data[gnp_per_p_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-4), \
+                f"GNP/P mismatch at year {year}: expected {expected}, got {actual}"
+
+    def test_tfc_per_peff(self, teske_input_data):
+        """Test TFC/PEFF calculation matches Excel."""
+        kaya_vars = compute_kaya_variables(teske_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+
+        tfc_per_peff_data = factors.filter(variable=kaya_factor_names.TFC_per_PEFF).data
+
+        for year, expected in TESKE_KAYA_RATIOS["TFC/PEFF"].items():
+            actual = tfc_per_peff_data[tfc_per_peff_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-4), \
+                f"TFC/PEFF mismatch at year {year}: expected {expected}, got {actual}"
+
+
+class TestTeskeLmdi:
+    """Test LMDI decomposition against Teske Excel."""
+
+    def test_contributions_sum_to_tfc_diff(self, teske_input_data):
+        """Test that LMDI contributions sum to TFC difference from base year."""
+        kaya_vars = compute_kaya_variables(teske_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+        result = compute_lmdi_cumulative(factors, base_year=2020)
+
+        tfc = factors.filter(variable=kaya_var_names.TFC)
+        tfc_base = tfc.filter(year=2020).data["value"].values[0]
+
+        for year in [2030, 2050]:
+            tfc_year = tfc.filter(year=year).data["value"].values[0]
+            tfc_diff = tfc_year - tfc_base
+
+            year_data = result.filter(year=year).data
+            contribution_sum = year_data["value"].sum()
+
+            assert np.isclose(contribution_sum, tfc_diff, rtol=1e-6), \
+                f"Year {year}: sum={contribution_sum}, tfc_diff={tfc_diff}"
+
+
+# ============================================================================
+# LMDI Cumulative Sum Tests (Period Sums)
+# ============================================================================
+
+# Note: The library's cumulative sum calculation uses non-negativity correction
+# which differs from the Excel methodology. These tests verify the structure
+# and fundamental LMDI properties rather than exact Excel value matches.
+
+
+class TestGrublerLedLmdiCumulativeSum:
+    """Test LMDI cumulative sum structure for Grubler LED data."""
+
+    def test_output_has_expected_structure(self, grubler_led_input_data):
+        """Test that output DataFrame has expected rows."""
+        kaya_vars = compute_kaya_variables(grubler_led_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+        lmdi = compute_lmdi_cumulative(factors, base_year=2020)
+        result = compute_lmdi_cumulative_sum(lmdi)
+
+        expected_rows = [
+            lmdi_names.Pop_cumulative,
+            lmdi_names.GNP_per_P_cumulative,
+            lmdi_names.FE_per_GNP_cumulative,
+            lmdi_names.PEdeq_per_FE_cumulative,
+            lmdi_names.PEFF_per_PEDEq_cumulative,
+            lmdi_names.TFC_per_PEFF_cumulative,
+        ]
+
+        for row in expected_rows:
+            assert row in result.index, f"Missing row: {row}"
+
+    def test_has_expected_periods(self, grubler_led_input_data):
+        """Test that output has expected period columns."""
+        kaya_vars = compute_kaya_variables(grubler_led_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+        lmdi = compute_lmdi_cumulative(factors, base_year=2020)
+        result = compute_lmdi_cumulative_sum(lmdi)
+
+        assert "2020 to 2050" in result.columns
+        assert "2020 to 2100" in result.columns
+
+
+class TestRockstromMessageLmdiCumulativeSum:
+    """Test LMDI cumulative sum structure for Rockstrom MESSAGE data."""
+
+    def test_output_has_expected_structure(self, rockstrom_message_input_data):
+        """Test that output DataFrame has expected rows."""
+        kaya_vars = compute_kaya_variables(rockstrom_message_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+        lmdi = compute_lmdi_cumulative(factors, base_year=2020)
+        result = compute_lmdi_cumulative_sum(lmdi)
+
+        expected_rows = [
+            lmdi_names.Pop_cumulative,
+            lmdi_names.GNP_per_P_cumulative,
+            lmdi_names.FE_per_GNP_cumulative,
+            lmdi_names.PEdeq_per_FE_cumulative,
+            lmdi_names.PEFF_per_PEDEq_cumulative,
+            lmdi_names.TFC_per_PEFF_cumulative,
+        ]
+
+        for row in expected_rows:
+            assert row in result.index, f"Missing row: {row}"
+
+
+class TestRogeljAimLmdiCumulativeSum:
+    """Test LMDI cumulative sum structure for Rogelj AIM data."""
+
+    def test_output_has_expected_structure(self, rogelj_aim_input_data):
+        """Test that output DataFrame has expected rows."""
+        kaya_vars = compute_kaya_variables(rogelj_aim_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+        lmdi = compute_lmdi_cumulative(factors, base_year=2020)
+        result = compute_lmdi_cumulative_sum(lmdi)
+
+        expected_rows = [
+            lmdi_names.Pop_cumulative,
+            lmdi_names.GNP_per_P_cumulative,
+            lmdi_names.FE_per_GNP_cumulative,
+            lmdi_names.PEdeq_per_FE_cumulative,
+            lmdi_names.PEFF_per_PEDEq_cumulative,
+            lmdi_names.TFC_per_PEFF_cumulative,
+        ]
+
+        for row in expected_rows:
+            assert row in result.index, f"Missing row: {row}"
+
+
+class TestTeskeLmdiCumulativeSum:
+    """Test LMDI cumulative sum structure for Teske data."""
+
+    def test_output_has_expected_structure(self, teske_input_data):
+        """Test that output DataFrame has expected rows."""
+        kaya_vars = compute_kaya_variables(teske_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+        lmdi = compute_lmdi_cumulative(factors, base_year=2020)
+        result = compute_lmdi_cumulative_sum(lmdi)
+
+        expected_rows = [
+            lmdi_names.Pop_cumulative,
+            lmdi_names.GNP_per_P_cumulative,
+            lmdi_names.FE_per_GNP_cumulative,
+            lmdi_names.PEdeq_per_FE_cumulative,
+            lmdi_names.PEFF_per_PEDEq_cumulative,
+            lmdi_names.TFC_per_PEFF_cumulative,
+        ]
+
+        for row in expected_rows:
+            assert row in result.index, f"Missing row: {row}"
+
+    def test_has_2020_to_2050_period(self, teske_input_data):
+        """Test that Teske data (2015-2050) produces 2020-2050 period."""
+        kaya_vars = compute_kaya_variables(teske_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+        lmdi = compute_lmdi_cumulative(factors, base_year=2020)
+        result = compute_lmdi_cumulative_sum(lmdi)
+
+        assert "2020 to 2050" in result.columns
