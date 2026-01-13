@@ -2423,3 +2423,889 @@ class TestAllSectorsLmdiVsExcel:
         actual_order = list(result.index)
         assert actual_order == expected_order, \
             f"Row order mismatch: expected {expected_order}, got {actual_order}"
+
+
+# ============================================================================
+# Phase 2: Complete Kaya Factors Testing for All Workbooks
+# ============================================================================
+
+# Add missing factor tests for Grubler LED
+class TestGrublerLedKayaFactorsComplete:
+    """Complete Kaya factors tests for Grubler LED Excel (adds missing factors)."""
+
+    def test_pedeq_per_fe(self, grubler_led_input_data):
+        """Test PEDEq/FE calculation matches Excel."""
+        kaya_vars = compute_kaya_variables(grubler_led_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+
+        pedeq_per_fe_data = factors.filter(variable=kaya_factor_names.PEdeq_per_FE).data
+
+        for year, expected in GRUBLER_KAYA_RATIOS["PEDEq/FE"].items():
+            actual = pedeq_per_fe_data[pedeq_per_fe_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-4), \
+                f"PEDEq/FE mismatch at year {year}: expected {expected}, got {actual}"
+
+    def test_peff_per_pedeq(self, grubler_led_input_data):
+        """Test PEFF/PEDEq calculation matches Excel."""
+        kaya_vars = compute_kaya_variables(grubler_led_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+
+        peff_per_pedeq_data = factors.filter(variable=kaya_factor_names.PEFF_per_PEDEq).data
+
+        for year, expected in GRUBLER_KAYA_RATIOS["PEFF/PEDEq"].items():
+            actual = peff_per_pedeq_data[peff_per_pedeq_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-4), \
+                f"PEFF/PEDEq mismatch at year {year}: expected {expected}, got {actual}"
+
+    def test_nfc_per_tfc(self, grubler_led_input_data):
+        """Test NFC/TFC calculation matches Excel (should be 1.0 for reference case)."""
+        kaya_vars = compute_kaya_variables(grubler_led_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+
+        nfc_per_tfc_data = factors.filter(variable=kaya_factor_names.NFC_per_TFC).data
+
+        for year, expected in GRUBLER_KAYA_RATIOS["NFC/TFC"].items():
+            actual = nfc_per_tfc_data[nfc_per_tfc_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-4), \
+                f"NFC/TFC mismatch at year {year}: expected {expected}, got {actual}"
+
+
+# Add missing factor tests for Rockstrom MESSAGE
+class TestRockstromMessageKayaFactorsComplete:
+    """Complete Kaya factors tests for Rockstrom MESSAGE Excel (adds missing factors)."""
+
+    def test_fe_per_gnp(self, rockstrom_message_input_data):
+        """Test FE/GNP calculation matches Excel."""
+        kaya_vars = compute_kaya_variables(rockstrom_message_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+
+        fe_per_gnp_data = factors.filter(variable=kaya_factor_names.FE_per_GNP).data
+
+        for year, expected in ROCKSTROM_KAYA_RATIOS["FE/GNP"].items():
+            actual = fe_per_gnp_data[fe_per_gnp_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-4), \
+                f"FE/GNP mismatch at year {year}: expected {expected}, got {actual}"
+
+    def test_pedeq_per_fe(self, rockstrom_message_input_data):
+        """Test PEDEq/FE calculation matches Excel."""
+        kaya_vars = compute_kaya_variables(rockstrom_message_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+
+        pedeq_per_fe_data = factors.filter(variable=kaya_factor_names.PEdeq_per_FE).data
+
+        for year, expected in ROCKSTROM_KAYA_RATIOS["PEDEq/FE"].items():
+            actual = pedeq_per_fe_data[pedeq_per_fe_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-4), \
+                f"PEDEq/FE mismatch at year {year}: expected {expected}, got {actual}"
+
+    def test_peff_per_pedeq(self, rockstrom_message_input_data):
+        """Test PEFF/PEDEq calculation matches Excel."""
+        kaya_vars = compute_kaya_variables(rockstrom_message_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+
+        peff_per_pedeq_data = factors.filter(variable=kaya_factor_names.PEFF_per_PEDEq).data
+
+        for year, expected in ROCKSTROM_KAYA_RATIOS["PEFF/PEDEq"].items():
+            actual = peff_per_pedeq_data[peff_per_pedeq_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-4), \
+                f"PEFF/PEDEq mismatch at year {year}: expected {expected}, got {actual}"
+
+    def test_nfc_per_tfc(self, rockstrom_message_input_data):
+        """Test NFC/TFC calculation matches Excel (should be 1.0 for reference case)."""
+        kaya_vars = compute_kaya_variables(rockstrom_message_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+
+        nfc_per_tfc_data = factors.filter(variable=kaya_factor_names.NFC_per_TFC).data
+
+        for year, expected in ROCKSTROM_KAYA_RATIOS["NFC/TFC"].items():
+            actual = nfc_per_tfc_data[nfc_per_tfc_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-4), \
+                f"NFC/TFC mismatch at year {year}: expected {expected}, got {actual}"
+
+
+# Add missing factor tests for Rogelj AIM
+class TestRogeljAimKayaFactorsComplete:
+    """Complete Kaya factors tests for Rogelj AIM Excel (adds missing factors)."""
+
+    def test_fe_per_gnp(self, rogelj_aim_input_data):
+        """Test FE/GNP calculation matches Excel."""
+        kaya_vars = compute_kaya_variables(rogelj_aim_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+
+        fe_per_gnp_data = factors.filter(variable=kaya_factor_names.FE_per_GNP).data
+
+        for year, expected in ROGELJ_KAYA_RATIOS["FE/GNP"].items():
+            actual = fe_per_gnp_data[fe_per_gnp_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-4), \
+                f"FE/GNP mismatch at year {year}: expected {expected}, got {actual}"
+
+    def test_pedeq_per_fe(self, rogelj_aim_input_data):
+        """Test PEDEq/FE calculation matches Excel."""
+        kaya_vars = compute_kaya_variables(rogelj_aim_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+
+        pedeq_per_fe_data = factors.filter(variable=kaya_factor_names.PEdeq_per_FE).data
+
+        for year, expected in ROGELJ_KAYA_RATIOS["PEDEq/FE"].items():
+            actual = pedeq_per_fe_data[pedeq_per_fe_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-4), \
+                f"PEDEq/FE mismatch at year {year}: expected {expected}, got {actual}"
+
+    def test_peff_per_pedeq(self, rogelj_aim_input_data):
+        """Test PEFF/PEDEq calculation matches Excel."""
+        kaya_vars = compute_kaya_variables(rogelj_aim_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+
+        peff_per_pedeq_data = factors.filter(variable=kaya_factor_names.PEFF_per_PEDEq).data
+
+        for year, expected in ROGELJ_KAYA_RATIOS["PEFF/PEDEq"].items():
+            actual = peff_per_pedeq_data[peff_per_pedeq_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-4), \
+                f"PEFF/PEDEq mismatch at year {year}: expected {expected}, got {actual}"
+
+    def test_nfc_per_tfc(self, rogelj_aim_input_data):
+        """Test NFC/TFC calculation matches Excel (should be 1.0 for reference case)."""
+        kaya_vars = compute_kaya_variables(rogelj_aim_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+
+        nfc_per_tfc_data = factors.filter(variable=kaya_factor_names.NFC_per_TFC).data
+
+        for year, expected in ROGELJ_KAYA_RATIOS["NFC/TFC"].items():
+            actual = nfc_per_tfc_data[nfc_per_tfc_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-4), \
+                f"NFC/TFC mismatch at year {year}: expected {expected}, got {actual}"
+
+
+# Add missing factor tests for Teske
+class TestTeskeKayaFactorsComplete:
+    """Complete Kaya factors tests for Teske Excel (adds missing factors)."""
+
+    def test_fe_per_gnp(self, teske_input_data):
+        """Test FE/GNP calculation matches Excel."""
+        kaya_vars = compute_kaya_variables(teske_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+
+        fe_per_gnp_data = factors.filter(variable=kaya_factor_names.FE_per_GNP).data
+
+        for year, expected in TESKE_KAYA_RATIOS["FE/GNP"].items():
+            actual = fe_per_gnp_data[fe_per_gnp_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-4), \
+                f"FE/GNP mismatch at year {year}: expected {expected}, got {actual}"
+
+    def test_pedeq_per_fe(self, teske_input_data):
+        """Test PEDEq/FE calculation matches Excel."""
+        kaya_vars = compute_kaya_variables(teske_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+
+        pedeq_per_fe_data = factors.filter(variable=kaya_factor_names.PEdeq_per_FE).data
+
+        for year, expected in TESKE_KAYA_RATIOS["PEDEq/FE"].items():
+            actual = pedeq_per_fe_data[pedeq_per_fe_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-4), \
+                f"PEDEq/FE mismatch at year {year}: expected {expected}, got {actual}"
+
+    def test_peff_per_pedeq(self, teske_input_data):
+        """Test PEFF/PEDEq calculation matches Excel."""
+        kaya_vars = compute_kaya_variables(teske_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+
+        peff_per_pedeq_data = factors.filter(variable=kaya_factor_names.PEFF_per_PEDEq).data
+
+        for year, expected in TESKE_KAYA_RATIOS["PEFF/PEDEq"].items():
+            actual = peff_per_pedeq_data[peff_per_pedeq_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-4), \
+                f"PEFF/PEDEq mismatch at year {year}: expected {expected}, got {actual}"
+
+    def test_nfc_per_tfc(self, teske_input_data):
+        """Test NFC/TFC calculation matches Excel (should be 1.0 for reference case)."""
+        kaya_vars = compute_kaya_variables(teske_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+
+        nfc_per_tfc_data = factors.filter(variable=kaya_factor_names.NFC_per_TFC).data
+
+        for year, expected in TESKE_KAYA_RATIOS["NFC/TFC"].items():
+            actual = nfc_per_tfc_data[nfc_per_tfc_data["year"] == year]["value"].values[0]
+            assert np.isclose(actual, expected, rtol=1e-4), \
+                f"NFC/TFC mismatch at year {year}: expected {expected}, got {actual}"
+
+
+# ============================================================================
+# Phase 3: All-Sectors Testing for All Workbooks
+# ============================================================================
+
+class TestGrublerOtherGases:
+    """Validate Other Gases calculation against Grubler LED Excel."""
+
+    def test_other_gases_output_structure(self, grubler_led_input_data):
+        """Test that Other Gases output has expected structure."""
+        result = compute_other_gases_emissions(grubler_led_input_data)
+        assert result is not None
+        assert "Emissions|Other Gases|CO2-equivalent" in result.data["variable"].values
+
+    def test_other_gases_positive_values(self, grubler_led_input_data):
+        """Test that Other Gases values are positive."""
+        result = compute_other_gases_emissions(grubler_led_input_data)
+        values = result.data["value"]
+        assert all(values > 0), "All Other Gases values should be positive"
+
+    def test_other_gases_reasonable_magnitude(self, grubler_led_input_data):
+        """Test that Other Gases values are in a reasonable range."""
+        result = compute_other_gases_emissions(grubler_led_input_data)
+        # Other gases should be in the thousands to tens of thousands Mt CO2-eq/yr range
+        values = result.data["value"]
+        assert all(values > 1000), "Other Gases should be > 1000 Mt CO2-eq/yr"
+        assert all(values < 100000), "Other Gases should be < 100000 Mt CO2-eq/yr"
+
+
+class TestGrublerIndustrialProcess:
+    """Validate Industrial Process calculation against Grubler LED Excel."""
+
+    def test_nic_output_structure(self, grubler_led_input_data):
+        """Test that NIC output has expected structure."""
+        result = compute_industrial_process_emissions(grubler_led_input_data)
+        assert result is not None
+        assert "Net Industrial Carbon" in result.data["variable"].values
+
+    def test_nic_positive_values(self, grubler_led_input_data):
+        """Test that NIC values are positive (before any CCS)."""
+        result = compute_industrial_process_emissions(grubler_led_input_data)
+        values = result.data["value"]
+        assert all(values >= 0), "NIC values should be non-negative"
+
+    def test_nic_equals_ip_when_no_ccs(self, grubler_led_input_data):
+        """Test that NIC equals IP emissions when CCS is zero."""
+        result = compute_industrial_process_emissions(grubler_led_input_data)
+
+        ip_data = grubler_led_input_data.filter(
+            variable="Emissions|CO2|Industrial Processes"
+        ).data
+
+        for year in [2020, 2050, 2100]:
+            ip_val = ip_data[ip_data["year"] == year]["value"].values[0]
+            nic_val = result.filter(year=year).data["value"].values[0]
+
+            assert np.isclose(nic_val, ip_val, rtol=1e-6), \
+                f"Year {year}: NIC {nic_val} should equal IP {ip_val} when no CCS"
+
+
+class TestGrublerLandUse:
+    """Validate Land Use calculation against Grubler LED Excel."""
+
+    def test_land_use_output_structure(self, grubler_led_input_data):
+        """Test that Land Use output has expected structure."""
+        result = compute_land_use_emissions(grubler_led_input_data)
+        assert result is not None
+        assert "Emissions|CO2|Land Use" in result.data["variable"].values
+
+    def test_land_use_matches_afolu_input(self, grubler_led_input_data):
+        """Test that Land Use matches AFOLU input values."""
+        result = compute_land_use_emissions(grubler_led_input_data)
+
+        afolu_data = grubler_led_input_data.filter(
+            variable="Emissions|CO2|AFOLU"
+        ).data
+
+        for year in [2020, 2050, 2100]:
+            afolu_val = afolu_data[afolu_data["year"] == year]["value"].values[0]
+            lu_val = result.filter(year=year).data["value"].values[0]
+
+            assert np.isclose(lu_val, afolu_val, rtol=1e-6), \
+                f"Year {year}: Land Use {lu_val} should equal AFOLU {afolu_val}"
+
+
+class TestGrublerAllSectorsLmdi:
+    """Validate all-sectors LMDI table against Grubler LED Excel."""
+
+    def test_output_has_all_expected_rows(self, grubler_led_input_data):
+        """Test that output has all expected row labels."""
+        result = compute_all_sectors_lmdi_cumulative(
+            grubler_led_input_data, base_year=2020
+        )
+
+        expected_rows = [
+            lmdi_names.Pop_cumulative,
+            lmdi_names.GNP_per_P_cumulative,
+            lmdi_names.FE_per_GNP_cumulative,
+            lmdi_names.PEdeq_per_FE_cumulative,
+            lmdi_names.PEFF_per_PEDEq_cumulative,
+            lmdi_names.TFC_per_PEFF_cumulative,
+            lmdi_names.Industrial_Process,
+            lmdi_names.Other_Gases,
+            lmdi_names.Land_Use,
+            lmdi_names.Total_Net_Emissions,
+        ]
+
+        for row in expected_rows:
+            assert row in result.index, f"Missing row: {row}"
+
+    def test_total_equals_sum_of_components(self, grubler_led_input_data):
+        """Test that Total Net Emissions equals sum of all components."""
+        result = compute_all_sectors_lmdi_cumulative(
+            grubler_led_input_data, base_year=2020
+        )
+
+        for col in result.columns:
+            component_sum = result.loc[
+                result.index != lmdi_names.Total_Net_Emissions, col
+            ].sum()
+            total = result.loc[lmdi_names.Total_Net_Emissions, col]
+
+            assert np.isclose(component_sum, total, rtol=1e-6), \
+                f"Period {col}: component sum={component_sum:.2f}, total={total:.2f}"
+
+
+class TestRockstromOtherGases:
+    """Validate Other Gases calculation against Rockstrom MESSAGE Excel."""
+
+    def test_other_gases_output_structure(self, rockstrom_message_input_data):
+        """Test that Other Gases output has expected structure."""
+        result = compute_other_gases_emissions(rockstrom_message_input_data)
+        assert result is not None
+        assert "Emissions|Other Gases|CO2-equivalent" in result.data["variable"].values
+
+    def test_other_gases_positive_values(self, rockstrom_message_input_data):
+        """Test that Other Gases values are positive."""
+        result = compute_other_gases_emissions(rockstrom_message_input_data)
+        values = result.data["value"]
+        assert all(values > 0), "All Other Gases values should be positive"
+
+
+class TestRockstromIndustrialProcess:
+    """Validate Industrial Process calculation against Rockstrom MESSAGE Excel."""
+
+    def test_nic_output_structure(self, rockstrom_message_input_data):
+        """Test that NIC output has expected structure."""
+        result = compute_industrial_process_emissions(rockstrom_message_input_data)
+        assert result is not None
+        assert "Net Industrial Carbon" in result.data["variable"].values
+
+
+class TestRockstromAllSectorsLmdi:
+    """Validate all-sectors LMDI table against Rockstrom MESSAGE Excel."""
+
+    def test_output_has_all_expected_rows(self, rockstrom_message_input_data):
+        """Test that output has all expected row labels."""
+        result = compute_all_sectors_lmdi_cumulative(
+            rockstrom_message_input_data, base_year=2020
+        )
+
+        expected_rows = [
+            lmdi_names.Pop_cumulative,
+            lmdi_names.GNP_per_P_cumulative,
+            lmdi_names.FE_per_GNP_cumulative,
+            lmdi_names.PEdeq_per_FE_cumulative,
+            lmdi_names.PEFF_per_PEDEq_cumulative,
+            lmdi_names.TFC_per_PEFF_cumulative,
+            lmdi_names.Industrial_Process,
+            lmdi_names.Other_Gases,
+            lmdi_names.Land_Use,
+            lmdi_names.Total_Net_Emissions,
+        ]
+
+        for row in expected_rows:
+            assert row in result.index, f"Missing row: {row}"
+
+    def test_total_equals_sum_of_components(self, rockstrom_message_input_data):
+        """Test that Total Net Emissions equals sum of all components."""
+        result = compute_all_sectors_lmdi_cumulative(
+            rockstrom_message_input_data, base_year=2020
+        )
+
+        for col in result.columns:
+            component_sum = result.loc[
+                result.index != lmdi_names.Total_Net_Emissions, col
+            ].sum()
+            total = result.loc[lmdi_names.Total_Net_Emissions, col]
+
+            assert np.isclose(component_sum, total, rtol=1e-6), \
+                f"Period {col}: component sum={component_sum:.2f}, total={total:.2f}"
+
+
+class TestRogeljOtherGases:
+    """Validate Other Gases calculation against Rogelj AIM Excel."""
+
+    def test_other_gases_output_structure(self, rogelj_aim_input_data):
+        """Test that Other Gases output has expected structure."""
+        result = compute_other_gases_emissions(rogelj_aim_input_data)
+        assert result is not None
+        assert "Emissions|Other Gases|CO2-equivalent" in result.data["variable"].values
+
+
+class TestRogeljIndustrialProcess:
+    """Validate Industrial Process calculation against Rogelj AIM Excel."""
+
+    def test_nic_output_structure(self, rogelj_aim_input_data):
+        """Test that NIC output has expected structure."""
+        result = compute_industrial_process_emissions(rogelj_aim_input_data)
+        assert result is not None
+        assert "Net Industrial Carbon" in result.data["variable"].values
+
+
+class TestRogeljAllSectorsLmdi:
+    """Validate all-sectors LMDI table against Rogelj AIM Excel."""
+
+    def test_output_has_all_expected_rows(self, rogelj_aim_input_data):
+        """Test that output has all expected row labels."""
+        result = compute_all_sectors_lmdi_cumulative(
+            rogelj_aim_input_data, base_year=2020
+        )
+
+        expected_rows = [
+            lmdi_names.Pop_cumulative,
+            lmdi_names.GNP_per_P_cumulative,
+            lmdi_names.FE_per_GNP_cumulative,
+            lmdi_names.PEdeq_per_FE_cumulative,
+            lmdi_names.PEFF_per_PEDEq_cumulative,
+            lmdi_names.TFC_per_PEFF_cumulative,
+            lmdi_names.Industrial_Process,
+            lmdi_names.Other_Gases,
+            lmdi_names.Land_Use,
+            lmdi_names.Total_Net_Emissions,
+        ]
+
+        for row in expected_rows:
+            assert row in result.index, f"Missing row: {row}"
+
+    def test_total_equals_sum_of_components(self, rogelj_aim_input_data):
+        """Test that Total Net Emissions equals sum of all components."""
+        result = compute_all_sectors_lmdi_cumulative(
+            rogelj_aim_input_data, base_year=2020
+        )
+
+        for col in result.columns:
+            component_sum = result.loc[
+                result.index != lmdi_names.Total_Net_Emissions, col
+            ].sum()
+            total = result.loc[lmdi_names.Total_Net_Emissions, col]
+
+            assert np.isclose(component_sum, total, rtol=1e-6), \
+                f"Period {col}: component sum={component_sum:.2f}, total={total:.2f}"
+
+
+class TestTeskeOtherGases:
+    """Validate Other Gases calculation against Teske Excel."""
+
+    def test_other_gases_output_structure(self, teske_input_data):
+        """Test that Other Gases output has expected structure."""
+        result = compute_other_gases_emissions(teske_input_data)
+        assert result is not None
+        assert "Emissions|Other Gases|CO2-equivalent" in result.data["variable"].values
+
+
+class TestTeskeIndustrialProcess:
+    """Validate Industrial Process calculation against Teske Excel."""
+
+    def test_nic_output_structure(self, teske_input_data):
+        """Test that NIC output has expected structure."""
+        result = compute_industrial_process_emissions(teske_input_data)
+        assert result is not None
+        assert "Net Industrial Carbon" in result.data["variable"].values
+
+
+class TestTeskeAllSectorsLmdi:
+    """Validate all-sectors LMDI table against Teske Excel."""
+
+    def test_output_has_all_expected_rows(self, teske_input_data):
+        """Test that output has all expected row labels."""
+        result = compute_all_sectors_lmdi_cumulative(
+            teske_input_data, base_year=2020, periods=[(2020, 2050)]
+        )
+
+        expected_rows = [
+            lmdi_names.Pop_cumulative,
+            lmdi_names.GNP_per_P_cumulative,
+            lmdi_names.FE_per_GNP_cumulative,
+            lmdi_names.PEdeq_per_FE_cumulative,
+            lmdi_names.PEFF_per_PEDEq_cumulative,
+            lmdi_names.TFC_per_PEFF_cumulative,
+            lmdi_names.Industrial_Process,
+            lmdi_names.Other_Gases,
+            lmdi_names.Land_Use,
+            lmdi_names.Total_Net_Emissions,
+        ]
+
+        for row in expected_rows:
+            assert row in result.index, f"Missing row: {row}"
+
+    def test_total_equals_sum_of_components(self, teske_input_data):
+        """Test that Total Net Emissions equals sum of all components."""
+        result = compute_all_sectors_lmdi_cumulative(
+            teske_input_data, base_year=2020, periods=[(2020, 2050)]
+        )
+
+        for col in result.columns:
+            component_sum = result.loc[
+                result.index != lmdi_names.Total_Net_Emissions, col
+            ].sum()
+            total = result.loc[lmdi_names.Total_Net_Emissions, col]
+
+            assert np.isclose(component_sum, total, rtol=1e-6), \
+                f"Period {col}: component sum={component_sum:.2f}, total={total:.2f}"
+
+
+# ============================================================================
+# Phase 4: Missing Function Tests
+# ============================================================================
+
+from kaya_decomposition import compute_lmdi, compute_all_sectors_emissions
+
+
+class TestLmdiScenarioComparison:
+    """Test compute_lmdi() scenario comparison function.
+
+    Note: This function compares two scenarios at the same time point,
+    unlike compute_lmdi_cumulative() which compares one scenario over time.
+    """
+
+    @pytest.fixture
+    def two_scenario_data(self, excel_input_data):
+        """Create data with two scenarios for LMDI comparison.
+
+        Creates an intervention scenario with 20% reduced emissions.
+        """
+        data = excel_input_data.data.copy()
+
+        # Create intervention scenario by reducing emissions
+        intervention_data = data.copy()
+        intervention_data["scenario"] = "SSP2-Intervention"
+
+        # Reduce CO2 emissions by 20%
+        co2_mask = intervention_data["variable"].str.contains("Emissions|CO2")
+        intervention_data.loc[co2_mask, "value"] *= 0.8
+
+        # Combine both scenarios
+        combined = pd.concat([data, intervention_data], ignore_index=True)
+        return IamDataFrame(combined)
+
+    def test_lmdi_output_structure(self, two_scenario_data):
+        """Test LMDI output has expected structure."""
+        kaya_vars = compute_kaya_variables(two_scenario_data)
+        factors = compute_kaya_factors(kaya_vars)
+
+        ref_scenario = ("IMAGE 3.0.1", "SSP2-Baseline", "World")
+        int_scenario = ("IMAGE 3.0.1", "SSP2-Intervention", "World")
+
+        result = compute_lmdi(factors, ref_scenario, int_scenario)
+
+        assert result is not None
+        # Check output variables exist
+        variables = result.data["variable"].unique()
+        assert len(variables) == 6  # 6 Kaya factors
+
+    def test_lmdi_sum_equals_tfc_diff(self, two_scenario_data):
+        """Test LMDI contributions sum to TFC difference between scenarios."""
+        kaya_vars = compute_kaya_variables(two_scenario_data)
+        factors = compute_kaya_factors(kaya_vars)
+
+        ref_scenario = ("IMAGE 3.0.1", "SSP2-Baseline", "World")
+        int_scenario = ("IMAGE 3.0.1", "SSP2-Intervention", "World")
+
+        result = compute_lmdi(factors, ref_scenario, int_scenario)
+
+        # Get TFC for both scenarios
+        tfc = factors.filter(variable=kaya_var_names.TFC)
+        tfc_ref = tfc.filter(scenario="SSP2-Baseline")
+        tfc_int = tfc.filter(scenario="SSP2-Intervention")
+
+        for year in [2020, 2050]:
+            tfc_ref_val = tfc_ref.filter(year=year).data["value"].values[0]
+            tfc_int_val = tfc_int.filter(year=year).data["value"].values[0]
+            tfc_diff = tfc_ref_val - tfc_int_val
+
+            year_data = result.filter(year=year).data
+            lmdi_sum = year_data["value"].sum()
+
+            # Allow some tolerance due to numerical precision
+            assert np.isclose(lmdi_sum, tfc_diff, rtol=1e-4), \
+                f"Year {year}: LMDI sum={lmdi_sum:.2f} != TFC diff={tfc_diff:.2f}"
+
+    def test_lmdi_intervention_scenario_identification(self, two_scenario_data):
+        """Test that intervention scenario is correctly identified in output."""
+        kaya_vars = compute_kaya_variables(two_scenario_data)
+        factors = compute_kaya_factors(kaya_vars)
+
+        ref_scenario = ("IMAGE 3.0.1", "SSP2-Baseline", "World")
+        int_scenario = ("IMAGE 3.0.1", "SSP2-Intervention", "World")
+
+        result = compute_lmdi(factors, ref_scenario, int_scenario)
+
+        # Output should reference the intervention scenario
+        scenarios = result.data["scenario"].unique()
+        assert len(scenarios) == 1
+
+
+class TestAllSectorsEmissions:
+    """Test compute_all_sectors_emissions() function."""
+
+    def test_output_has_expected_variables(self, excel_input_data):
+        """Test that output contains NFC, NIC, Other Gases, Land Use."""
+        result = compute_all_sectors_emissions(excel_input_data)
+
+        expected_vars = [
+            kaya_var_names.NFC,
+            "Net Industrial Carbon",
+            "Emissions|Other Gases|CO2-equivalent",
+            "Emissions|CO2|Land Use",
+        ]
+        actual_vars = result.data["variable"].unique()
+
+        for var in expected_vars:
+            assert var in actual_vars, f"Missing variable: {var}"
+
+    def test_nfc_matches_kaya_variables(self, excel_input_data):
+        """Test NFC from all_sectors matches kaya_variables output."""
+        all_sectors = compute_all_sectors_emissions(excel_input_data)
+        kaya_vars = compute_kaya_variables(excel_input_data)
+
+        nfc_all_sectors = all_sectors.filter(variable=kaya_var_names.NFC)
+        nfc_kaya = kaya_vars.filter(variable=kaya_var_names.NFC)
+
+        for year in [2020, 2050, 2100]:
+            all_sectors_val = nfc_all_sectors.filter(year=year).data["value"].values[0]
+            kaya_val = nfc_kaya.filter(year=year).data["value"].values[0]
+
+            assert np.isclose(all_sectors_val, kaya_val, rtol=1e-6), \
+                f"Year {year}: all_sectors NFC {all_sectors_val} != kaya NFC {kaya_val}"
+
+    def test_other_gases_matches_standalone(self, excel_input_data):
+        """Test Other Gases matches compute_other_gases_emissions() output."""
+        all_sectors = compute_all_sectors_emissions(excel_input_data)
+        standalone = compute_other_gases_emissions(excel_input_data)
+
+        for year in [2020, 2050, 2100]:
+            all_sectors_val = all_sectors.filter(
+                variable="Emissions|Other Gases|CO2-equivalent", year=year
+            ).data["value"].values[0]
+            standalone_val = standalone.filter(year=year).data["value"].values[0]
+
+            assert np.isclose(all_sectors_val, standalone_val, rtol=1e-6), \
+                f"Year {year}: all_sectors OG {all_sectors_val} != standalone OG {standalone_val}"
+
+    def test_industrial_process_matches_standalone(self, excel_input_data):
+        """Test Industrial Process matches compute_industrial_process_emissions() output."""
+        all_sectors = compute_all_sectors_emissions(excel_input_data)
+        standalone = compute_industrial_process_emissions(excel_input_data)
+
+        for year in [2020, 2050, 2100]:
+            all_sectors_val = all_sectors.filter(
+                variable="Net Industrial Carbon", year=year
+            ).data["value"].values[0]
+            standalone_val = standalone.filter(year=year).data["value"].values[0]
+
+            assert np.isclose(all_sectors_val, standalone_val, rtol=1e-6), \
+                f"Year {year}: all_sectors NIC {all_sectors_val} != standalone NIC {standalone_val}"
+
+    def test_land_use_matches_standalone(self, excel_input_data):
+        """Test Land Use matches compute_land_use_emissions() output."""
+        all_sectors = compute_all_sectors_emissions(excel_input_data)
+        standalone = compute_land_use_emissions(excel_input_data)
+
+        for year in [2020, 2050, 2100]:
+            all_sectors_val = all_sectors.filter(
+                variable="Emissions|CO2|Land Use", year=year
+            ).data["value"].values[0]
+            standalone_val = standalone.filter(year=year).data["value"].values[0]
+
+            assert np.isclose(all_sectors_val, standalone_val, rtol=1e-6), \
+                f"Year {year}: all_sectors LU {all_sectors_val} != standalone LU {standalone_val}"
+
+
+# ============================================================================
+# Phase 5: Value Validation with Expected Results
+# ============================================================================
+
+class TestGrublerLmdiCumulativeSumValues:
+    """Test LMDI cumulative sum values against Grubler LED Excel."""
+
+    def test_population_contribution_sign(self, grubler_led_input_data):
+        """Test that population contribution is positive (growing population)."""
+        kaya_vars = compute_kaya_variables(grubler_led_input_data)
+        kaya_factors = compute_kaya_factors(kaya_vars)
+
+        result = compute_lmdi_cumulative_sum(
+            kaya_factors, base_year=2020, periods=[(2020, 2050)]
+        )
+
+        pop_contribution = result.loc[lmdi_names.Pop_cumulative, "2020 to 2050"]
+        assert pop_contribution > 0, \
+            f"Population contribution should be positive, got {pop_contribution}"
+
+    def test_economic_activity_contribution_sign(self, grubler_led_input_data):
+        """Test that economic activity contribution is positive (growing economy)."""
+        kaya_vars = compute_kaya_variables(grubler_led_input_data)
+        kaya_factors = compute_kaya_factors(kaya_vars)
+
+        result = compute_lmdi_cumulative_sum(
+            kaya_factors, base_year=2020, periods=[(2020, 2050)]
+        )
+
+        econ_contribution = result.loc[lmdi_names.GNP_per_P_cumulative, "2020 to 2050"]
+        assert econ_contribution > 0, \
+            f"Economic activity contribution should be positive, got {econ_contribution}"
+
+    def test_energy_intensity_contribution_sign(self, grubler_led_input_data):
+        """Test that energy intensity contribution is negative (improving efficiency)."""
+        kaya_vars = compute_kaya_variables(grubler_led_input_data)
+        kaya_factors = compute_kaya_factors(kaya_vars)
+
+        result = compute_lmdi_cumulative_sum(
+            kaya_factors, base_year=2020, periods=[(2020, 2050)]
+        )
+
+        energy_int_contribution = result.loc[lmdi_names.FE_per_GNP_cumulative, "2020 to 2050"]
+        assert energy_int_contribution < 0, \
+            f"Energy intensity contribution should be negative, got {energy_int_contribution}"
+
+
+class TestRockstromLmdiCumulativeSumValues:
+    """Test LMDI cumulative sum values against Rockstrom MESSAGE Excel."""
+
+    def test_population_contribution_sign(self, rockstrom_message_input_data):
+        """Test that population contribution is positive."""
+        kaya_vars = compute_kaya_variables(rockstrom_message_input_data)
+        kaya_factors = compute_kaya_factors(kaya_vars)
+
+        result = compute_lmdi_cumulative_sum(
+            kaya_factors, base_year=2020, periods=[(2020, 2050)]
+        )
+
+        pop_contribution = result.loc[lmdi_names.Pop_cumulative, "2020 to 2050"]
+        assert pop_contribution > 0, \
+            f"Population contribution should be positive, got {pop_contribution}"
+
+    def test_economic_activity_contribution_sign(self, rockstrom_message_input_data):
+        """Test that economic activity contribution is positive."""
+        kaya_vars = compute_kaya_variables(rockstrom_message_input_data)
+        kaya_factors = compute_kaya_factors(kaya_vars)
+
+        result = compute_lmdi_cumulative_sum(
+            kaya_factors, base_year=2020, periods=[(2020, 2050)]
+        )
+
+        econ_contribution = result.loc[lmdi_names.GNP_per_P_cumulative, "2020 to 2050"]
+        assert econ_contribution > 0, \
+            f"Economic activity contribution should be positive, got {econ_contribution}"
+
+
+class TestRogeljLmdiCumulativeSumValues:
+    """Test LMDI cumulative sum values against Rogelj AIM Excel."""
+
+    def test_population_contribution_sign(self, rogelj_aim_input_data):
+        """Test that population contribution is positive."""
+        kaya_vars = compute_kaya_variables(rogelj_aim_input_data)
+        kaya_factors = compute_kaya_factors(kaya_vars)
+
+        result = compute_lmdi_cumulative_sum(
+            kaya_factors, base_year=2020, periods=[(2020, 2050)]
+        )
+
+        pop_contribution = result.loc[lmdi_names.Pop_cumulative, "2020 to 2050"]
+        assert pop_contribution > 0, \
+            f"Population contribution should be positive, got {pop_contribution}"
+
+
+class TestTeskeLmdiCumulativeSumValues:
+    """Test LMDI cumulative sum values against Teske Excel."""
+
+    def test_population_contribution_sign(self, teske_input_data):
+        """Test that population contribution is positive."""
+        kaya_vars = compute_kaya_variables(teske_input_data)
+        kaya_factors = compute_kaya_factors(kaya_vars)
+
+        result = compute_lmdi_cumulative_sum(
+            kaya_factors, base_year=2020, periods=[(2020, 2050)]
+        )
+
+        pop_contribution = result.loc[lmdi_names.Pop_cumulative, "2020 to 2050"]
+        assert pop_contribution > 0, \
+            f"Population contribution should be positive, got {pop_contribution}"
+
+    def test_economic_activity_contribution_sign(self, teske_input_data):
+        """Test that economic activity contribution is positive."""
+        kaya_vars = compute_kaya_variables(teske_input_data)
+        kaya_factors = compute_kaya_factors(kaya_vars)
+
+        result = compute_lmdi_cumulative_sum(
+            kaya_factors, base_year=2020, periods=[(2020, 2050)]
+        )
+
+        econ_contribution = result.loc[lmdi_names.GNP_per_P_cumulative, "2020 to 2050"]
+        assert econ_contribution > 0, \
+            f"Economic activity contribution should be positive, got {econ_contribution}"
+
+
+# ============================================================================
+# Cross-Workbook Consistency Tests
+# ============================================================================
+
+class TestCrossWorkbookConsistency:
+    """Test that calculations are consistent across different workbooks."""
+
+    def test_all_workbooks_produce_valid_kaya_factors(
+        self, excel_input_data, grubler_led_input_data, rockstrom_message_input_data,
+        rogelj_aim_input_data, teske_input_data
+    ):
+        """Test that all workbooks produce valid Kaya factors."""
+        datasets = [
+            ("vanvuuren", excel_input_data),
+            ("grubler", grubler_led_input_data),
+            ("rockstrom", rockstrom_message_input_data),
+            ("rogelj", rogelj_aim_input_data),
+            ("teske", teske_input_data),
+        ]
+
+        for name, data in datasets:
+            kaya_vars = compute_kaya_variables(data)
+            factors = compute_kaya_factors(kaya_vars)
+
+            # Check all 6 factors exist
+            expected_factors = [
+                kaya_factor_names.GNP_per_P,
+                kaya_factor_names.FE_per_GNP,
+                kaya_factor_names.PEdeq_per_FE,
+                kaya_factor_names.PEFF_per_PEDEq,
+                kaya_factor_names.TFC_per_PEFF,
+                kaya_factor_names.NFC_per_TFC,
+            ]
+
+            actual_factors = factors.data["variable"].unique()
+            for factor in expected_factors:
+                assert factor in actual_factors, \
+                    f"{name}: Missing factor {factor}"
+
+    def test_all_workbooks_produce_valid_lmdi(
+        self, excel_input_data, grubler_led_input_data, rockstrom_message_input_data,
+        rogelj_aim_input_data, teske_input_data
+    ):
+        """Test that all workbooks produce valid LMDI decomposition."""
+        datasets = [
+            ("vanvuuren", excel_input_data),
+            ("grubler", grubler_led_input_data),
+            ("rockstrom", rockstrom_message_input_data),
+            ("rogelj", rogelj_aim_input_data),
+            ("teske", teske_input_data),
+        ]
+
+        for name, data in datasets:
+            kaya_vars = compute_kaya_variables(data)
+            factors = compute_kaya_factors(kaya_vars)
+            lmdi = compute_lmdi_cumulative(factors, base_year=2020)
+
+            # Check LMDI contributions sum to TFC difference
+            tfc = factors.filter(variable=kaya_var_names.TFC)
+            tfc_2020 = tfc.filter(year=2020).data["value"].values[0]
+
+            # Get a future year that exists in this dataset
+            years = sorted(tfc.data["year"].unique())
+            test_year = 2050 if 2050 in years else years[-1]
+
+            if test_year == 2020:
+                continue  # Skip if only base year available
+
+            tfc_future = tfc.filter(year=test_year).data["value"].values[0]
+            tfc_diff = tfc_future - tfc_2020
+
+            lmdi_sum = lmdi.filter(year=test_year).data["value"].sum()
+
+            assert np.isclose(lmdi_sum, tfc_diff, rtol=1e-5), \
+                f"{name}: LMDI sum {lmdi_sum:.2f} != TFC diff {tfc_diff:.2f} at year {test_year}"
