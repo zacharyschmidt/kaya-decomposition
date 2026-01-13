@@ -24,13 +24,13 @@ maintainers = [
    {name = "Zachary Schmidt", email = "zacharym.schmidt@gmail.com"},
 ]
 
+dependencies = ["pyam-iamc>=2.0.0"]
+
 [project.urls]
 Homepage = "https://github.com/zacharyschmidt/kaya-decomposition"
 Repository = "https://github.com/zacharyschmidt/kaya-decomposition"
 Documentation = "https://github.com/zacharyschmidt/kaya-decomposition#readme"
 "Bug Tracker" = "https://github.com/zacharyschmidt/kaya-decomposition/issues"
-
-dependencies = ["pyam-iamc>=2.0.0"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0.0", "pytest-cov>=4.1.0"]

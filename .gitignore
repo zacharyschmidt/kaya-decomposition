@@ -31,3 +31,18 @@ htmlcov/
 
 # Ruff
 .ruff_cache/
+
+# Secrets & credentials
+.env
+.env.*
+*.pem
+*.key
+secrets.json
+config.local.*
+
+# PyPI credentials
+.pypirc
+
+# Editor backups that might contain sensitive info
+*.bak
+*.swp
