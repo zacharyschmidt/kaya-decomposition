@@ -14,6 +14,7 @@ from kaya_decomposition.factors import compute_kaya_factors
 from kaya_decomposition.lmdi_cumulative import (
     compute_lmdi_cumulative_sum,
 )
+from kaya_decomposition.utils import trapezoidal_integrate
 
 
 def compute_other_gases_emissions(input_data, fgas_method="aggregate"):
@@ -400,59 +401,8 @@ def _compute_sector_lmdi_cumulative(sector_data, base_year, variable_name, outpu
     return pyam.IamDataFrame(pd.DataFrame(result_rows))
 
 
-def _trapezoidal_integrate_sector(var_data, start_year, end_year):
-    """Integrate values using trapezoidal rule for non-Kaya sectors.
-
-    Parameters
-    ----------
-    var_data : pd.DataFrame
-        Data for a single variable with 'year' and 'value' columns.
-    start_year : int
-        Start of period (exclusive - base year has 0 contribution).
-    end_year : int
-        End of period (inclusive).
-
-    Returns
-    -------
-    float
-        Integrated sum in original units (Mt CO2).
-    """
-    years = sorted(var_data["year"].unique())
-
-    total = 0
-    prev_year = None
-    prev_val = None
-
-    for year in years:
-        val = var_data[var_data["year"] == year]["value"].values[0]
-
-        if prev_year is not None:
-            # Only integrate segments within the period
-            seg_start = max(prev_year, start_year)
-            seg_end = min(year, end_year)
-
-            if seg_start < seg_end:
-                # Interpolate values at segment boundaries if needed
-                if prev_year < seg_start:
-                    frac = (seg_start - prev_year) / (year - prev_year)
-                    v1 = prev_val + frac * (val - prev_val)
-                else:
-                    v1 = prev_val
-
-                if year > seg_end:
-                    frac = (seg_end - prev_year) / (year - prev_year)
-                    v2 = prev_val + frac * (val - prev_val)
-                else:
-                    v2 = val
-
-                # Trapezoidal area
-                area = (v1 + v2) / 2 * (seg_end - seg_start)
-                total += area
-
-        prev_year = year
-        prev_val = val
-
-    return total
+# Use shared trapezoidal integration function
+_trapezoidal_integrate_sector = trapezoidal_integrate
 
 
 def _compute_sector_period_sum(sector_lmdi, periods, integration_method="trapezoidal"):
@@ -565,8 +515,11 @@ def compute_all_sectors_lmdi_cumulative(
             model=scenario[0], scenario=scenario[1], region=scenario[2]
         )
     else:
-        # Use first available scenario
+        # Use first available scenario with bounds check
         data = input_data.data
+        if data.empty:
+            raise ValueError("Input data is empty. Cannot compute LMDI analysis.")
+
         first_model = data["model"].iloc[0]
         first_scenario = data["scenario"].iloc[0]
         first_region = data["region"].iloc[0]

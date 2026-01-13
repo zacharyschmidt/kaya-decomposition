@@ -10,6 +10,7 @@ from kaya_decomposition.constants import (
     kaya_variables as kaya_variable_names,
     lmdi_cumulative as lmdi_cumulative_names,
 )
+from kaya_decomposition.utils import trapezoidal_integrate
 
 
 # Mapping from Kaya factors to cumulative LMDI output names
@@ -70,8 +71,11 @@ def compute_lmdi_cumulative(
             model=scenario[0], scenario=scenario[1], region=scenario[2]
         )
     else:
-        # Use first available scenario
+        # Use first available scenario with bounds check
         data = kaya_factors_df.data
+        if data.empty:
+            raise ValueError("Input data is empty. Cannot compute cumulative LMDI.")
+
         first_model = data["model"].iloc[0]
         first_scenario = data["scenario"].iloc[0]
         first_region = data["region"].iloc[0]
@@ -293,13 +297,27 @@ def _calc_uncorrected_lmdi_cumulative(kaya_factors_df, base_year):
     -------
     pyam.IamDataFrame
         Uncorrected LMDI terms for each factor at each year.
+
+    Raises
+    ------
+    ValueError
+        If base_year is not present in the data.
     """
     data = kaya_factors_df.data
 
-    # Get base year TFC
-    tfc_base = data[
+    # Get base year TFC with bounds check
+    tfc_base_data = data[
         (data["variable"] == kaya_variable_names.TFC) & (data["year"] == base_year)
-    ]["value"].values[0]
+    ]["value"].values
+
+    if len(tfc_base_data) == 0:
+        available_years = sorted(data["year"].unique())
+        raise ValueError(
+            f"Base year {base_year} not found in data. "
+            f"Available years: {available_years}"
+        )
+
+    tfc_base = tfc_base_data[0]
 
     # Get all years
     years = sorted(data["year"].unique())
@@ -369,13 +387,27 @@ def _calc_tfc_diff_cumulative(kaya_factors_df, base_year):
     -------
     dict
         Dictionary mapping year to TFC difference.
+
+    Raises
+    ------
+    ValueError
+        If base_year is not present in the data.
     """
     data = kaya_factors_df.data
 
-    # Get base year TFC
-    tfc_base = data[
+    # Get base year TFC with bounds check
+    tfc_base_data = data[
         (data["variable"] == kaya_variable_names.TFC) & (data["year"] == base_year)
-    ]["value"].values[0]
+    ]["value"].values
+
+    if len(tfc_base_data) == 0:
+        available_years = sorted(data["year"].unique())
+        raise ValueError(
+            f"Base year {base_year} not found in data. "
+            f"Available years: {available_years}"
+        )
+
+    tfc_base = tfc_base_data[0]
 
     # Calculate difference for each year
     tfc_diff = {}
@@ -450,58 +482,5 @@ def _apply_lmdi_correction(uncorrected_lmdi, tfc_diff):
     return pyam.IamDataFrame(result_df)
 
 
-def _trapezoidal_integrate(var_data, start_year, end_year):
-    """Integrate values using trapezoidal rule.
-
-    Parameters
-    ----------
-    var_data : pd.DataFrame
-        Data for a single variable with 'year' and 'value' columns.
-    start_year : int
-        Start of period (exclusive - base year has 0 contribution).
-    end_year : int
-        End of period (inclusive).
-
-    Returns
-    -------
-    float
-        Integrated sum in original units (Mt CO2).
-    """
-    years = sorted(var_data["year"].unique())
-
-    total = 0
-    prev_year = None
-    prev_val = None
-
-    for year in years:
-        val = var_data[var_data["year"] == year]["value"].values[0]
-
-        if prev_year is not None:
-            # Only integrate segments within the period
-            seg_start = max(prev_year, start_year)
-            seg_end = min(year, end_year)
-
-            if seg_start < seg_end:
-                # Interpolate values at segment boundaries if needed
-                if prev_year < seg_start:
-                    # Linear interpolation to get value at seg_start
-                    frac = (seg_start - prev_year) / (year - prev_year)
-                    v1 = prev_val + frac * (val - prev_val)
-                else:
-                    v1 = prev_val
-
-                if year > seg_end:
-                    # Linear interpolation to get value at seg_end
-                    frac = (seg_end - prev_year) / (year - prev_year)
-                    v2 = prev_val + frac * (val - prev_val)
-                else:
-                    v2 = val
-
-                # Trapezoidal area
-                area = (v1 + v2) / 2 * (seg_end - seg_start)
-                total += area
-
-        prev_year = year
-        prev_val = val
-
-    return total
+# Use shared trapezoidal integration function
+_trapezoidal_integrate = trapezoidal_integrate

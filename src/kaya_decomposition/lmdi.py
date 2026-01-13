@@ -1,6 +1,6 @@
 """Compute LMDI (Logarithmic Mean Divisia Index) decomposition."""
 
-from functools import reduce
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -12,6 +12,66 @@ from kaya_decomposition.constants import (
     kaya_variables as kaya_variable_names,
     lmdi as lmdi_names,
 )
+
+
+# Ordered list of LMDI factor names for iteration
+LMDI_FACTOR_NAMES = [
+    lmdi_names.Pop_LMDI,
+    lmdi_names.GNP_per_P_LMDI,
+    lmdi_names.FE_per_GNP_LMDI,
+    lmdi_names.PEdeq_per_FE_LMDI,
+    lmdi_names.PEFF_per_PEDEq_LMDI,
+    lmdi_names.TFC_per_PEFF_LMDI,
+]
+
+# Mapping from Kaya factor names to LMDI output names
+KAYA_FACTOR_TO_LMDI_NAME = {
+    input_variables.POPULATION: lmdi_names.Pop_LMDI,
+    kaya_factor_names.GNP_per_P: lmdi_names.GNP_per_P_LMDI,
+    kaya_factor_names.FE_per_GNP: lmdi_names.FE_per_GNP_LMDI,
+    kaya_factor_names.PEdeq_per_FE: lmdi_names.PEdeq_per_FE_LMDI,
+    kaya_factor_names.PEFF_per_PEDEq: lmdi_names.PEFF_per_PEDEq_LMDI,
+    kaya_factor_names.TFC_per_PEFF: lmdi_names.TFC_per_PEFF_LMDI,
+}
+
+
+def _logarithmic_mean(a, b):
+    """Calculate the logarithmic mean of two values.
+
+    L(a, b) = (a - b) / (ln(a) - ln(b))
+
+    Special cases:
+    - If a == b: returns a (by L'Hôpital's rule)
+    - If a <= 0 or b <= 0: returns NaN
+
+    Parameters
+    ----------
+    a, b : float or array-like
+        Values to calculate logarithmic mean for.
+
+    Returns
+    -------
+    float or array-like
+        Logarithmic mean.
+    """
+    a = np.asarray(a, dtype=float)
+    b = np.asarray(b, dtype=float)
+
+    # Suppress expected warnings for edge cases (handled explicitly below)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+
+        # Handle equal values (limit as b -> a is a)
+        result = np.where(
+            np.isclose(a, b),
+            a,
+            (a - b) / (np.log(a) - np.log(b))
+        )
+
+        # Handle non-positive values
+        result = np.where((a <= 0) | (b <= 0), np.nan, result)
+
+    return result
 
 
 def compute_lmdi(kaya_factors_df, ref_scenario, int_scenario):
@@ -71,89 +131,21 @@ def compute_lmdi(kaya_factors_df, ref_scenario, int_scenario):
         "total_no_neg", "tfc_diff", "difference", append=False, ignore_units=True
     )
 
+    # Apply correction to each LMDI factor
     lmdi_frames = []
-    p_percent = _calc_percent_of_total_for_one_term(
-        non_neg, lmdi_names.Pop_LMDI, total_non_neg
-    )
-    p_correction = p_percent.append(difference).multiply(
-        lmdi_names.Pop_LMDI, "difference", "correction", ignore_units=True
-    )
-    p_corrected = p_correction.append(non_neg).add(
-        lmdi_names.Pop_LMDI, "correction", lmdi_names.Pop_LMDI, ignore_units=True
-    )
-    lmdi_frames.append(p_corrected)
+    for factor_name in LMDI_FACTOR_NAMES:
+        percent = _calc_percent_of_total_for_one_term(
+            non_neg, factor_name, total_non_neg
+        )
+        correction = percent.append(difference).multiply(
+            factor_name, "difference", "correction", ignore_units=True
+        )
+        corrected = correction.append(non_neg).add(
+            factor_name, "correction", factor_name, ignore_units=True
+        )
+        lmdi_frames.append(corrected)
 
-    gnp_per_p_percent = _calc_percent_of_total_for_one_term(
-        non_neg, lmdi_names.GNP_per_P_LMDI, total_non_neg
-    )
-    gnp_per_p_correction = gnp_per_p_percent.append(difference).multiply(
-        lmdi_names.GNP_per_P_LMDI, "difference", "correction", ignore_units=True
-    )
-    gnp_per_p_corrected = gnp_per_p_correction.append(non_neg).add(
-        lmdi_names.GNP_per_P_LMDI,
-        "correction",
-        lmdi_names.GNP_per_P_LMDI,
-        ignore_units=True,
-    )
-    lmdi_frames.append(gnp_per_p_corrected)
-
-    fe_per_gnp_percent = _calc_percent_of_total_for_one_term(
-        non_neg, lmdi_names.FE_per_GNP_LMDI, total_non_neg
-    )
-    fe_per_gnp_correction = fe_per_gnp_percent.append(difference).multiply(
-        lmdi_names.FE_per_GNP_LMDI, "difference", "correction", ignore_units=True
-    )
-    fe_per_gnp_corrected = fe_per_gnp_correction.append(non_neg).add(
-        lmdi_names.FE_per_GNP_LMDI,
-        "correction",
-        lmdi_names.FE_per_GNP_LMDI,
-        ignore_units=True,
-    )
-    lmdi_frames.append(fe_per_gnp_corrected)
-
-    pedeq_per_fe_percent = _calc_percent_of_total_for_one_term(
-        non_neg, lmdi_names.PEdeq_per_FE_LMDI, total_non_neg
-    )
-    pedeq_per_fe_correction = pedeq_per_fe_percent.append(difference).multiply(
-        lmdi_names.PEdeq_per_FE_LMDI, "difference", "correction", ignore_units=True
-    )
-    pedeq_per_fe_corrected = pedeq_per_fe_correction.append(non_neg).add(
-        lmdi_names.PEdeq_per_FE_LMDI,
-        "correction",
-        lmdi_names.PEdeq_per_FE_LMDI,
-        ignore_units=True,
-    )
-    lmdi_frames.append(pedeq_per_fe_corrected)
-
-    peff_per_pedeq_percent = _calc_percent_of_total_for_one_term(
-        non_neg, lmdi_names.PEFF_per_PEDEq_LMDI, total_non_neg
-    )
-    peff_per_pedeq_correction = peff_per_pedeq_percent.append(difference).multiply(
-        lmdi_names.PEFF_per_PEDEq_LMDI, "difference", "correction", ignore_units=True
-    )
-    peff_per_pedeq_corrected = peff_per_pedeq_correction.append(non_neg).add(
-        lmdi_names.PEFF_per_PEDEq_LMDI,
-        "correction",
-        lmdi_names.PEFF_per_PEDEq_LMDI,
-        ignore_units=True,
-    )
-    lmdi_frames.append(peff_per_pedeq_corrected)
-
-    tfc_per_peff_percent = _calc_percent_of_total_for_one_term(
-        non_neg, lmdi_names.TFC_per_PEFF_LMDI, total_non_neg
-    )
-    tfc_per_peff_correction = tfc_per_peff_percent.append(difference).multiply(
-        lmdi_names.TFC_per_PEFF_LMDI, "difference", "correction", ignore_units=True
-    )
-    tfc_per_peff_corrected = tfc_per_peff_correction.append(non_neg).add(
-        lmdi_names.TFC_per_PEFF_LMDI,
-        "correction",
-        lmdi_names.TFC_per_PEFF_LMDI,
-        ignore_units=True,
-    )
-    lmdi_frames.append(tfc_per_peff_corrected)
-
-    full_lmdi = reduce(lambda x, y: x.append(y), lmdi_frames)
+    full_lmdi = pyam.concat(lmdi_frames)
     full_lmdi_no_scenario_class_column = pyam.IamDataFrame(
         full_lmdi.as_pandas().drop(columns="scenario_class")
     )
@@ -161,68 +153,42 @@ def compute_lmdi(kaya_factors_df, ref_scenario, int_scenario):
 
 
 def _lmdi_non_neg(uncorrected):
-    p_non_neg = _calc_one_non_negative_term(uncorrected, lmdi_names.Pop_LMDI)
-    gnp_per_p_non_neg = _calc_one_non_negative_term(
-        uncorrected, lmdi_names.GNP_per_P_LMDI
-    )
-    fe_per_gnp_non_neg = _calc_one_non_negative_term(
-        uncorrected, lmdi_names.FE_per_GNP_LMDI
-    )
-    pedeq_per_fe_non_neg = _calc_one_non_negative_term(
-        uncorrected, lmdi_names.PEdeq_per_FE_LMDI
-    )
-    peff_per_pedeq_non_neg = _calc_one_non_negative_term(
-        uncorrected, lmdi_names.PEFF_per_PEDEq_LMDI
-    )
-    tfc_per_peff_non_neg = _calc_one_non_negative_term(
-        uncorrected, lmdi_names.TFC_per_PEFF_LMDI
-    )
-
-    return (
-        p_non_neg.append(gnp_per_p_non_neg)
-        .append(fe_per_gnp_non_neg)
-        .append(pedeq_per_fe_non_neg)
-        .append(peff_per_pedeq_non_neg)
-        .append(tfc_per_peff_non_neg)
-    )
+    """Calculate non-negative LMDI terms by clipping negative values to zero."""
+    non_neg_frames = [
+        _calc_one_non_negative_term(uncorrected, factor_name)
+        for factor_name in LMDI_FACTOR_NAMES
+    ]
+    return pyam.concat(non_neg_frames)
 
 
 def _sum_lmdi_non_neg(lmdi_non_neg):
-    lmdi_non_neg.add(
-        lmdi_names.Pop_LMDI,
-        lmdi_names.GNP_per_P_LMDI,
-        "sum_to_GNP_per_P_LMDI",
-        append=True,
-        ignore_units=True,
-    )
-    lmdi_non_neg.add(
-        "sum_to_GNP_per_P_LMDI",
-        lmdi_names.FE_per_GNP_LMDI,
-        "sum_to_FE_per_GNP_LMDI",
-        append=True,
-        ignore_units=True,
-    )
-    lmdi_non_neg.add(
-        "sum_to_FE_per_GNP_LMDI",
-        lmdi_names.PEdeq_per_FE_LMDI,
-        "sum_to_PEdeq_per_FE_LMDI",
-        append=True,
-        ignore_units=True,
-    )
-    lmdi_non_neg.add(
-        "sum_to_PEdeq_per_FE_LMDI",
-        lmdi_names.PEFF_per_PEDEq_LMDI,
-        "sum_to_PEFF_per_PEDEq_LMDI",
-        append=True,
-        ignore_units=True,
-    )
-    return lmdi_non_neg.add(
-        "sum_to_PEFF_per_PEDEq_LMDI",
-        lmdi_names.TFC_per_PEFF_LMDI,
-        "total_no_neg",
-        append=False,
-        ignore_units=True,
-    )
+    """Sum all non-negative LMDI terms to get total."""
+    # Accumulate sum iteratively through factors
+    running_sum_name = LMDI_FACTOR_NAMES[0]
+
+    for i, factor_name in enumerate(LMDI_FACTOR_NAMES[1:], start=1):
+        is_last = (i == len(LMDI_FACTOR_NAMES) - 1)
+        next_sum_name = "total_no_neg" if is_last else f"sum_to_{i}"
+
+        if is_last:
+            # Last iteration: return the result without appending
+            return lmdi_non_neg.add(
+                running_sum_name,
+                factor_name,
+                next_sum_name,
+                append=False,
+                ignore_units=True,
+            )
+        else:
+            # Intermediate iterations: append to dataframe and continue
+            lmdi_non_neg.add(
+                running_sum_name,
+                factor_name,
+                next_sum_name,
+                append=True,
+                ignore_units=True,
+            )
+            running_sum_name = next_sum_name
 
 
 def _calc_percent_of_total_for_one_term(non_neg, lmdi_term_name, tfc_diff):
@@ -271,31 +237,12 @@ def _remove_negative(lmdi_term):
 
 
 def _uncorrected_lmdi(kaya_factors_df):
-    p = _calc_one_lmdi_term(
-        kaya_factors_df, input_variables.POPULATION, lmdi_names.Pop_LMDI
-    )
-    gnp_per_p = _calc_one_lmdi_term(
-        kaya_factors_df, kaya_factor_names.GNP_per_P, lmdi_names.GNP_per_P_LMDI
-    )
-    fe_per_gnp = _calc_one_lmdi_term(
-        kaya_factors_df, kaya_factor_names.FE_per_GNP, lmdi_names.FE_per_GNP_LMDI
-    )
-    pe_deq_per_fe = _calc_one_lmdi_term(
-        kaya_factors_df, kaya_factor_names.PEdeq_per_FE, lmdi_names.PEdeq_per_FE_LMDI
-    )
-    peff_per_pe_deq = _calc_one_lmdi_term(
-        kaya_factors_df, kaya_factor_names.PEFF_per_PEDEq, lmdi_names.PEFF_per_PEDEq_LMDI
-    )
-    tfc_per_peff = _calc_one_lmdi_term(
-        kaya_factors_df, kaya_factor_names.TFC_per_PEFF, lmdi_names.TFC_per_PEFF_LMDI
-    )
-    return (
-        p.append(gnp_per_p)
-        .append(fe_per_gnp)
-        .append(pe_deq_per_fe)
-        .append(peff_per_pe_deq)
-        .append(tfc_per_peff)
-    )
+    """Calculate uncorrected LMDI terms for all Kaya factors."""
+    lmdi_terms = [
+        _calc_one_lmdi_term(kaya_factors_df, kaya_factor_name, lmdi_name)
+        for kaya_factor_name, lmdi_name in KAYA_FACTOR_TO_LMDI_NAME.items()
+    ]
+    return pyam.concat(lmdi_terms)
 
 
 def _calc_one_lmdi_term(
@@ -369,10 +316,25 @@ def _lmdi(kaya_factor, kaya_product):
         .set_index(list(kaya_factor.reset_index().columns[:-1]))
         .rename(columns=lambda x: "value")
     )
-    return (
-        ((tfc_ref - tfc_int) / (np.log(tfc_ref) - np.log(tfc_int)))
-        * (np.log(factor_ref / factor_int))
-    ).squeeze(axis=1)
+
+    # Use logarithmic mean with protection against division by zero
+    log_mean = _logarithmic_mean(tfc_ref.values, tfc_int.values)
+
+    # Handle factor ratio with protection against zero/negative values
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        factor_ratio = np.where(
+            (factor_ref.values > 0) & (factor_int.values > 0),
+            np.log(factor_ref.values / factor_int.values),
+            0.0
+        )
+
+    result = log_mean * factor_ratio
+
+    # Return as Series with the same index structure
+    result_df = tfc_ref.copy()
+    result_df["value"] = result.flatten()
+    return result_df.squeeze(axis=1)
 
 
 def _make_combined_scenario_name(kaya_factor):
