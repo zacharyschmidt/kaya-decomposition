@@ -17,6 +17,19 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
 ]
+authors = [
+    {name = "Zachary Schmidt", email = "zacharym.schmidt@gmail.com"},
+]
+maintainers = [
+   {name = "Zachary Schmidt", email = "zacharym.schmidt@gmail.com"},
+]
+
+[project.urls]
+Homepage = "https://github.com/zacharyschmidt/kaya-decomposition"
+Repository = "https://github.com/zacharyschmidt/kaya-decomposition"
+Documentation = "https://github.com/zacharyschmidt/kaya-decomposition#readme"
+"Bug Tracker" = "https://github.com/zacharyschmidt/kaya-decomposition/issues"
+
 dependencies = ["pyam-iamc>=2.0.0"]
 
 [project.optional-dependencies]
@@ -28,6 +41,16 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/kaya_decomposition"]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "excel/",
+    "*.ipynb",
+    "teske_*.csv",
+    "*_PLAN.md",
+    "CLAUDE.md",
+    "docs/",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

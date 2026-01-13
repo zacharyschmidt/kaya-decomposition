@@ -10,7 +10,6 @@ Key features:
 - **Kaya Decomposition**: Compute intermediate variables and decomposition factors
 - **LMDI Analysis**: Logarithmic Mean Divisia Index for scenario comparison
 - **Cumulative LMDI**: Time-series decomposition within a single scenario
-- **All-Sectors Analysis**: Include non-CO2 gases, industrial processes, and land use
 
 ## Installation
 
@@ -63,7 +62,7 @@ from kaya_decomposition import compute_lmdi_cumulative, compute_lmdi_cumulative_
 # Decompose changes over time within a single scenario
 lmdi_cumulative = compute_lmdi_cumulative(factors, base_year=2020)
 
-# Sum contributions by period (matches Excel LMDItableRefAllSectors format)
+# Sum contributions by period
 period_sums = compute_lmdi_cumulative_sum(
     factors,
     base_year=2020,
