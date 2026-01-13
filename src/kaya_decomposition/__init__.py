@@ -13,12 +13,18 @@ from kaya_decomposition.all_sectors import (
     compute_all_sectors_emissions,
     compute_all_sectors_lmdi_cumulative,
 )
+from kaya_decomposition.savings import (
+    compute_savings,
+    compute_savings_with_percentages,
+    compute_lmdi_scenario_comparison,
+)
 from kaya_decomposition.constants import (
     input_variables,
     kaya_variables,
     kaya_factors,
     lmdi,
     lmdi_cumulative,
+    savings,
 )
 
 __version__ = "0.2.0"
@@ -37,10 +43,15 @@ __all__ = [
     "compute_industrial_process_emissions",
     "compute_all_sectors_emissions",
     "compute_all_sectors_lmdi_cumulative",
+    # Savings (two-scenario comparison over time)
+    "compute_savings",
+    "compute_savings_with_percentages",
+    "compute_lmdi_scenario_comparison",
     # Constants
     "input_variables",
     "kaya_variables",
     "kaya_factors",
     "lmdi",
     "lmdi_cumulative",
+    "savings",
 ]
