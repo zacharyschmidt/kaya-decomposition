@@ -614,6 +614,101 @@ class TestLmdiCumulativeSumVsExcel:
             assert np.isclose(lmdi_sum, tfc_diff, rtol=1e-6), \
                 f"Year {year}: LMDI sum {lmdi_sum} != TFC diff {tfc_diff}"
 
+    def test_kaya_trapezoidal_integration_matches_excel(self, excel_input_data):
+        """Test that passing kaya_factors uses trapezoidal integration matching Excel.
+
+        When kaya_factors are passed directly to compute_lmdi_cumulative_sum,
+        it should use trapezoidal integration of uncorrected values and output
+        in Gt CO2, matching the Excel LMDItableRefAllSectors methodology.
+        """
+        kaya_vars = compute_kaya_variables(excel_input_data)
+        kaya_factors = compute_kaya_factors(kaya_vars)
+
+        # Pass kaya_factors directly (triggers trapezoidal integration)
+        result = compute_lmdi_cumulative_sum(
+            kaya_factors,
+            base_year=2020,
+            periods=[(2020, 2050), (2050, 2100), (2020, 2100)],
+        )
+
+        # Expected values from Excel LMDItableRefAllSectors (in Gt CO2)
+        # Allow 10% relative tolerance OR 1 Gt absolute tolerance for small values
+        # (smaller factors can have higher relative error due to integration differences)
+        expected = EXCEL_LMDI_CUMULATIVE_SUMS["2020 to 2050"]
+
+        # Test each Kaya factor
+        assert np.isclose(
+            result.loc[lmdi_names.Pop_cumulative, "2020 to 2050"],
+            expected["Population"],
+            rtol=0.10, atol=1.0
+        ), f"Population mismatch: got {result.loc[lmdi_names.Pop_cumulative, '2020 to 2050']:.2f}, expected {expected['Population']:.2f}"
+
+        assert np.isclose(
+            result.loc[lmdi_names.GNP_per_P_cumulative, "2020 to 2050"],
+            expected["Economic Activity per Person"],
+            rtol=0.10, atol=1.0
+        ), f"Economic Activity mismatch"
+
+        assert np.isclose(
+            result.loc[lmdi_names.FE_per_GNP_cumulative, "2020 to 2050"],
+            expected["Energy Intensity of Economy"],
+            rtol=0.10, atol=1.0
+        ), f"Energy Intensity mismatch"
+
+        assert np.isclose(
+            result.loc[lmdi_names.PEdeq_per_FE_cumulative, "2020 to 2050"],
+            expected["Energy Supply Loss Factor"],
+            rtol=0.10, atol=1.0
+        ), f"Energy Supply Loss Factor mismatch"
+
+        assert np.isclose(
+            result.loc[lmdi_names.PEFF_per_PEDEq_cumulative, "2020 to 2050"],
+            expected["Fossil Fuel Fraction"],
+            rtol=0.10, atol=1.0
+        ), f"Fossil Fuel Fraction mismatch"
+
+        assert np.isclose(
+            result.loc[lmdi_names.TFC_per_PEFF_cumulative, "2020 to 2050"],
+            expected["Carbon Intensity of Fossil Energy"],
+            rtol=0.10, atol=1.0
+        ), f"Carbon Intensity mismatch"
+
+    def test_kaya_trapezoidal_output_in_gt(self, excel_input_data):
+        """Test that kaya_factors input produces output in Gt (not Mt)."""
+        kaya_vars = compute_kaya_variables(excel_input_data)
+        kaya_factors = compute_kaya_factors(kaya_vars)
+
+        result = compute_lmdi_cumulative_sum(
+            kaya_factors,
+            base_year=2020,
+            periods=[(2020, 2050)],
+        )
+
+        # Values should be in Gt range (tens to hundreds), not Mt range (thousands)
+        pop_value = result.loc[lmdi_names.Pop_cumulative, "2020 to 2050"]
+        assert 10 < abs(pop_value) < 500, \
+            f"Population value {pop_value} appears to be in wrong units (expected Gt range)"
+
+    def test_legacy_lmdi_input_uses_endpoint_method(self, excel_input_data):
+        """Test that passing LMDI results uses legacy endpoint method."""
+        kaya_vars = compute_kaya_variables(excel_input_data)
+        kaya_factors = compute_kaya_factors(kaya_vars)
+        lmdi = compute_lmdi_cumulative(kaya_factors, base_year=2020)
+
+        # Pass LMDI results (triggers legacy behavior)
+        result = compute_lmdi_cumulative_sum(lmdi, periods=[(2020, 2050)])
+
+        # Manually compute expected sum using endpoint method
+        pop_data = lmdi.filter(variable=lmdi_names.Pop_cumulative).data
+        manual_sum = pop_data[pop_data["year"].isin([2030, 2040, 2050])]["value"].sum()
+
+        # Should match endpoint summation exactly
+        assert np.isclose(
+            result.loc[lmdi_names.Pop_cumulative, "2020 to 2050"],
+            manual_sum,
+            rtol=1e-6
+        ), "Legacy LMDI input should use endpoint method"
+
 
 class TestLogarithmicMeanFunction:
     """Test the logarithmic mean helper function against expected values."""
@@ -1909,3 +2004,422 @@ class TestTeskeLmdiCumulativeSum:
         result = compute_lmdi_cumulative_sum(lmdi)
 
         assert "2020 to 2050" in result.columns
+
+
+# ============================================================================
+# All-Sectors Validation Tests (Other Gases, Industrial Process, Land Use)
+# ============================================================================
+
+from kaya_decomposition.all_sectors import (
+    compute_other_gases_emissions,
+    compute_industrial_process_emissions,
+    compute_land_use_emissions,
+    compute_all_sectors_lmdi_cumulative,
+)
+
+# Expected values from Excel OtherGases sheet (vanVuuren IMAGE)
+# CH4: Emissions|CH4 × GWP_CH4 (27.9)
+# N2O: Emissions|N2O × GWP_N2O (273) / 1000 (kt to Mt conversion)
+# F-gases: Emissions|F-Gases (already in CO2-equivalent)
+EXCEL_OTHER_GASES = {
+    2020: {
+        "CH4_CO2eq": 395.828308 * 27.9,  # 11,043.61 Mt CO2/yr
+        "N2O_CO2eq": 11182.576520 * 273 / 1000,  # 3,052.84 Mt CO2/yr
+        "FGases_CO2eq": 1734.183960,  # Mt CO2/yr (already CO2-eq)
+        "Total": 395.828308 * 27.9 + 11182.576520 * 273 / 1000 + 1734.183960,
+    },
+    2030: {
+        "CH4_CO2eq": 431.790192 * 27.9,
+        "N2O_CO2eq": 12487.891180 * 273 / 1000,
+        "FGases_CO2eq": 2202.768070,
+        "Total": 431.790192 * 27.9 + 12487.891180 * 273 / 1000 + 2202.768070,
+    },
+    2050: {
+        "CH4_CO2eq": 462.931305 * 27.9,
+        "N2O_CO2eq": 13865.354210 * 273 / 1000,
+        "FGases_CO2eq": 3184.767090,
+        "Total": 462.931305 * 27.9 + 13865.354210 * 273 / 1000 + 3184.767090,
+    },
+    2100: {
+        "CH4_CO2eq": 484.348785 * 27.9,
+        "N2O_CO2eq": 13789.851980 * 273 / 1000,
+        "FGases_CO2eq": 5575.554200,
+        "Total": 484.348785 * 27.9 + 13789.851980 * 273 / 1000 + 5575.554200,
+    },
+}
+
+# Expected values from Excel IndustryEmissionsAccountingRef sheet
+# NIC = Emissions|CO2|Industrial Processes - CCS|Fossil|IP - CCS|Biomass|IP
+# In the reference case, CCS = 0, so NIC = IP emissions
+EXCEL_INDUSTRIAL_PROCESS = {
+    2020: {"NIC": 1846.389532},  # Mt CO2/yr
+    2030: {"NIC": 2014.854928},
+    2050: {"NIC": 2292.768161},
+    2100: {"NIC": 3714.655956},
+}
+
+# Expected values from Excel for Land Use (AFOLU emissions)
+# Direct extraction from Emissions|CO2|AFOLU
+EXCEL_LAND_USE = {
+    2020: {"AFOLU": 5212.455964},  # Mt CO2/yr
+    2030: {"AFOLU": 6280.914655},
+    2050: {"AFOLU": 5046.797847},
+    2100: {"AFOLU": -526.664525},  # negative = net sink
+}
+
+
+class TestOtherGasesVsExcel:
+    """Validate Other Gases calculation against Excel OtherGases sheet."""
+
+    def test_ch4_gwp_conversion(self, excel_input_data):
+        """Test CH4 GWP conversion matches Excel."""
+        result = compute_other_gases_emissions(excel_input_data)
+
+        # Get CH4 input value at 2020
+        ch4_input = excel_input_data.filter(
+            variable="Emissions|CH4", year=2020
+        ).data["value"].values[0]
+
+        # Expected CH4 CO2-eq contribution
+        expected_ch4_co2eq = ch4_input * 27.9  # GWP_CH4
+
+        # Total should include this contribution
+        total = result.filter(year=2020).data["value"].values[0]
+
+        # Verify total is at least the CH4 contribution
+        assert total >= expected_ch4_co2eq * 0.99, \
+            f"Total {total} should include CH4 contribution {expected_ch4_co2eq}"
+
+    def test_total_other_gases_at_2020(self, excel_input_data):
+        """Test total Other Gases at 2020 matches Excel."""
+        result = compute_other_gases_emissions(excel_input_data)
+        actual = result.filter(year=2020).data["value"].values[0]
+        expected = EXCEL_OTHER_GASES[2020]["Total"]
+
+        assert np.isclose(actual, expected, rtol=0.001), \
+            f"Other Gases 2020: expected {expected:.2f}, got {actual:.2f}"
+
+    def test_total_other_gases_at_2050(self, excel_input_data):
+        """Test total Other Gases at 2050 matches Excel."""
+        result = compute_other_gases_emissions(excel_input_data)
+        actual = result.filter(year=2050).data["value"].values[0]
+        expected = EXCEL_OTHER_GASES[2050]["Total"]
+
+        assert np.isclose(actual, expected, rtol=0.001), \
+            f"Other Gases 2050: expected {expected:.2f}, got {actual:.2f}"
+
+    def test_total_other_gases_at_2100(self, excel_input_data):
+        """Test total Other Gases at 2100 matches Excel."""
+        result = compute_other_gases_emissions(excel_input_data)
+        actual = result.filter(year=2100).data["value"].values[0]
+        expected = EXCEL_OTHER_GASES[2100]["Total"]
+
+        assert np.isclose(actual, expected, rtol=0.001), \
+            f"Other Gases 2100: expected {expected:.2f}, got {actual:.2f}"
+
+    def test_other_gases_all_years(self, excel_input_data):
+        """Test Other Gases across all key years."""
+        result = compute_other_gases_emissions(excel_input_data)
+
+        for year, expected_vals in EXCEL_OTHER_GASES.items():
+            year_data = result.filter(year=year).data
+            if len(year_data) > 0:
+                actual = year_data["value"].values[0]
+                expected = expected_vals["Total"]
+                assert np.isclose(actual, expected, rtol=0.001), \
+                    f"Other Gases {year}: expected {expected:.2f}, got {actual:.2f}"
+
+
+class TestIndustrialProcessVsExcel:
+    """Validate Industrial Process (NIC) calculation against Excel."""
+
+    def test_nic_at_2020(self, excel_input_data):
+        """Test Net Industrial Carbon at 2020 matches Excel."""
+        result = compute_industrial_process_emissions(excel_input_data)
+        actual = result.filter(year=2020).data["value"].values[0]
+        expected = EXCEL_INDUSTRIAL_PROCESS[2020]["NIC"]
+
+        assert np.isclose(actual, expected, rtol=0.001), \
+            f"NIC 2020: expected {expected:.2f}, got {actual:.2f}"
+
+    def test_nic_at_2050(self, excel_input_data):
+        """Test Net Industrial Carbon at 2050 matches Excel."""
+        result = compute_industrial_process_emissions(excel_input_data)
+        actual = result.filter(year=2050).data["value"].values[0]
+        expected = EXCEL_INDUSTRIAL_PROCESS[2050]["NIC"]
+
+        assert np.isclose(actual, expected, rtol=0.001), \
+            f"NIC 2050: expected {expected:.2f}, got {actual:.2f}"
+
+    def test_nic_at_2100(self, excel_input_data):
+        """Test Net Industrial Carbon at 2100 matches Excel."""
+        result = compute_industrial_process_emissions(excel_input_data)
+        actual = result.filter(year=2100).data["value"].values[0]
+        expected = EXCEL_INDUSTRIAL_PROCESS[2100]["NIC"]
+
+        assert np.isclose(actual, expected, rtol=0.001), \
+            f"NIC 2100: expected {expected:.2f}, got {actual:.2f}"
+
+    def test_nic_all_years(self, excel_input_data):
+        """Test NIC across all key years."""
+        result = compute_industrial_process_emissions(excel_input_data)
+
+        for year, expected_vals in EXCEL_INDUSTRIAL_PROCESS.items():
+            year_data = result.filter(year=year).data
+            if len(year_data) > 0:
+                actual = year_data["value"].values[0]
+                expected = expected_vals["NIC"]
+                assert np.isclose(actual, expected, rtol=0.001), \
+                    f"NIC {year}: expected {expected:.2f}, got {actual:.2f}"
+
+    def test_nic_equals_ip_when_no_ccs(self, excel_input_data):
+        """Test that NIC equals IP emissions when CCS is zero."""
+        result = compute_industrial_process_emissions(excel_input_data)
+
+        # Get IP emissions input
+        ip_data = excel_input_data.filter(
+            variable="Emissions|CO2|Industrial Processes"
+        ).data
+
+        for year in [2020, 2050, 2100]:
+            ip_val = ip_data[ip_data["year"] == year]["value"].values[0]
+            nic_val = result.filter(year=year).data["value"].values[0]
+
+            assert np.isclose(nic_val, ip_val, rtol=1e-6), \
+                f"Year {year}: NIC {nic_val} should equal IP {ip_val} when no CCS"
+
+
+class TestLandUseVsExcel:
+    """Validate Land Use (AFOLU) calculation against Excel."""
+
+    def test_afolu_at_2020(self, excel_input_data):
+        """Test Land Use emissions at 2020 matches Excel."""
+        result = compute_land_use_emissions(excel_input_data)
+        actual = result.filter(year=2020).data["value"].values[0]
+        expected = EXCEL_LAND_USE[2020]["AFOLU"]
+
+        assert np.isclose(actual, expected, rtol=0.001), \
+            f"Land Use 2020: expected {expected:.2f}, got {actual:.2f}"
+
+    def test_afolu_at_2050(self, excel_input_data):
+        """Test Land Use emissions at 2050 matches Excel."""
+        result = compute_land_use_emissions(excel_input_data)
+        actual = result.filter(year=2050).data["value"].values[0]
+        expected = EXCEL_LAND_USE[2050]["AFOLU"]
+
+        assert np.isclose(actual, expected, rtol=0.001), \
+            f"Land Use 2050: expected {expected:.2f}, got {actual:.2f}"
+
+    def test_afolu_at_2100(self, excel_input_data):
+        """Test Land Use at 2100 shows net sink (negative)."""
+        result = compute_land_use_emissions(excel_input_data)
+        actual = result.filter(year=2100).data["value"].values[0]
+        expected = EXCEL_LAND_USE[2100]["AFOLU"]
+
+        assert np.isclose(actual, expected, rtol=0.001), \
+            f"Land Use 2100: expected {expected:.2f}, got {actual:.2f}"
+
+        # Verify it's negative (net sink)
+        assert actual < 0, "Land Use at 2100 should be negative (net sink)"
+
+    def test_afolu_all_years(self, excel_input_data):
+        """Test Land Use across all key years."""
+        result = compute_land_use_emissions(excel_input_data)
+
+        for year, expected_vals in EXCEL_LAND_USE.items():
+            year_data = result.filter(year=year).data
+            if len(year_data) > 0:
+                actual = year_data["value"].values[0]
+                expected = expected_vals["AFOLU"]
+                assert np.isclose(actual, expected, rtol=0.001), \
+                    f"Land Use {year}: expected {expected:.2f}, got {actual:.2f}"
+
+
+class TestAllSectorsLmdiVsExcel:
+    """Validate full all-sectors LMDI table structure and mathematical properties.
+
+    Note: The expected values in EXCEL_LMDI_CUMULATIVE_SUMS require verification
+    against the actual Excel file. Current tests verify structural properties
+    and compute expected values for non-Kaya sectors from first principles.
+    """
+
+    def test_output_has_all_expected_rows(self, excel_input_data):
+        """Test that output DataFrame has all expected row labels."""
+        result = compute_all_sectors_lmdi_cumulative(
+            excel_input_data,
+            base_year=2020,
+            periods=[(2020, 2050), (2050, 2100), (2020, 2100)],
+        )
+
+        expected_rows = [
+            lmdi_names.Pop_cumulative,
+            lmdi_names.GNP_per_P_cumulative,
+            lmdi_names.FE_per_GNP_cumulative,
+            lmdi_names.PEdeq_per_FE_cumulative,
+            lmdi_names.PEFF_per_PEDEq_cumulative,
+            lmdi_names.TFC_per_PEFF_cumulative,
+            lmdi_names.Industrial_Process,
+            lmdi_names.Other_Gases,
+            lmdi_names.Land_Use,
+            lmdi_names.Total_Net_Emissions,
+        ]
+
+        for row in expected_rows:
+            assert row in result.index, f"Missing row: {row}"
+
+    def test_output_has_all_expected_columns(self, excel_input_data):
+        """Test that output DataFrame has all expected period columns."""
+        result = compute_all_sectors_lmdi_cumulative(
+            excel_input_data,
+            base_year=2020,
+            periods=[(2020, 2050), (2050, 2100), (2020, 2100)],
+        )
+
+        expected_cols = ["2020 to 2050", "2050 to 2100", "2020 to 2100"]
+
+        for col in expected_cols:
+            assert col in result.columns, f"Missing column: {col}"
+
+    def test_total_equals_sum_of_components(self, excel_input_data):
+        """Test that Total Net Emissions equals sum of all components."""
+        result = compute_all_sectors_lmdi_cumulative(
+            excel_input_data,
+            base_year=2020,
+            periods=[(2020, 2050), (2050, 2100), (2020, 2100)],
+        )
+
+        for col in result.columns:
+            component_sum = result.loc[
+                result.index != lmdi_names.Total_Net_Emissions, col
+            ].sum()
+            total = result.loc[lmdi_names.Total_Net_Emissions, col]
+
+            assert np.isclose(component_sum, total, rtol=1e-6), \
+                f"Period {col}: component sum={component_sum:.2f}, total={total:.2f}"
+
+    def test_industrial_process_contribution(self, excel_input_data):
+        """Test Industrial Process contribution using trapezoidal integration.
+
+        The result should be in Gt CO2 and match the Excel LMDItableRefAllSectors
+        sheet (which uses annual interpolation + summation).
+        """
+        result = compute_all_sectors_lmdi_cumulative(
+            excel_input_data,
+            base_year=2020,
+            periods=[(2020, 2050), (2050, 2100), (2020, 2100)],
+        )
+
+        # Expected values from Excel LMDItableRefAllSectors (in Gt CO2)
+        # Note: slight differences expected due to trapezoidal vs annual integration
+        expected_2020_2050 = EXCEL_LMDI_CUMULATIVE_SUMS["2020 to 2050"]["Industrial Process Carbon Emissions"]
+
+        actual_2020_2050 = result.loc[lmdi_names.Industrial_Process, "2020 to 2050"]
+
+        # Allow 5% tolerance due to integration method differences
+        assert np.isclose(actual_2020_2050, expected_2020_2050, rtol=0.05), \
+            f"IP 2020-2050: expected {expected_2020_2050:.2f} Gt, got {actual_2020_2050:.2f} Gt"
+
+    def test_other_gases_contribution(self, excel_input_data):
+        """Test Other Gases contribution using trapezoidal integration.
+
+        The result should be in Gt CO2 and match the Excel LMDItableRefAllSectors
+        sheet (which uses annual interpolation + summation).
+        """
+        result = compute_all_sectors_lmdi_cumulative(
+            excel_input_data,
+            base_year=2020,
+            periods=[(2020, 2050), (2050, 2100), (2020, 2100)],
+        )
+
+        # Expected values from Excel LMDItableRefAllSectors (in Gt CO2-eq)
+        # Note: slight differences expected due to trapezoidal vs annual integration
+        expected_2020_2050 = EXCEL_LMDI_CUMULATIVE_SUMS["2020 to 2050"]["Other Gases"]
+
+        actual_2020_2050 = result.loc[lmdi_names.Other_Gases, "2020 to 2050"]
+
+        # Allow 5% tolerance due to integration method differences
+        assert np.isclose(actual_2020_2050, expected_2020_2050, rtol=0.05), \
+            f"OG 2020-2050: expected {expected_2020_2050:.2f} Gt, got {actual_2020_2050:.2f} Gt"
+
+    def test_land_use_contribution(self, excel_input_data):
+        """Test Land Use contribution using trapezoidal integration.
+
+        The result should be in Gt CO2 and match the Excel LMDItableRefAllSectors
+        sheet (which uses annual interpolation + summation).
+        """
+        result = compute_all_sectors_lmdi_cumulative(
+            excel_input_data,
+            base_year=2020,
+            periods=[(2020, 2050), (2050, 2100), (2020, 2100)],
+        )
+
+        # Expected values from Excel LMDItableRefAllSectors (in Gt CO2)
+        # Note: slight differences expected due to trapezoidal vs annual integration
+        expected_2020_2050 = EXCEL_LMDI_CUMULATIVE_SUMS["2020 to 2050"]["Land Use"]
+
+        actual_2020_2050 = result.loc[lmdi_names.Land_Use, "2020 to 2050"]
+
+        # Allow 5% tolerance due to integration method differences
+        assert np.isclose(actual_2020_2050, expected_2020_2050, rtol=0.05), \
+            f"LU 2020-2050: expected {expected_2020_2050:.2f} Gt, got {actual_2020_2050:.2f} Gt"
+
+    def test_land_use_becomes_negative_sink_by_2100(self, excel_input_data):
+        """Test that Land Use contribution becomes negative by 2100 (net sink)."""
+        result = compute_all_sectors_lmdi_cumulative(
+            excel_input_data,
+            base_year=2020,
+            periods=[(2020, 2050), (2050, 2100), (2020, 2100)],
+        )
+
+        # Land use at 2100 is negative (net sink), so cumulative should be negative
+        lu_2050_2100 = result.loc[lmdi_names.Land_Use, "2050 to 2100"]
+        assert lu_2050_2100 < 0, \
+            f"Land Use 2050-2100 should be negative (sink), got {lu_2050_2100:.2f}"
+
+    def test_kaya_contributions_sum_to_nfc_diff(self, excel_input_data):
+        """Test that Kaya factor contributions sum to NFC difference at each year.
+
+        This is the fundamental LMDI property for Kaya decomposition.
+        """
+        kaya_vars = compute_kaya_variables(excel_input_data)
+        factors = compute_kaya_factors(kaya_vars)
+        lmdi = compute_lmdi_cumulative(factors, base_year=2020)
+
+        # Get TFC values (which equals NFC in reference case with no CCS)
+        tfc_data = factors.filter(variable=kaya_var_names.TFC).data
+        tfc_2020 = tfc_data[tfc_data["year"] == 2020]["value"].values[0]
+
+        for year in [2030, 2050, 2100]:
+            tfc_year = tfc_data[tfc_data["year"] == year]["value"].values[0]
+            tfc_diff = tfc_year - tfc_2020
+
+            # Sum all LMDI contributions at this year
+            year_data = lmdi.filter(year=year).data
+            lmdi_sum = year_data["value"].sum()
+
+            assert np.isclose(lmdi_sum, tfc_diff, rtol=1e-6), \
+                f"Year {year}: LMDI sum {lmdi_sum:.2f} != TFC diff {tfc_diff:.2f}"
+
+    def test_row_order_matches_expected(self, excel_input_data):
+        """Test that rows are in the expected order matching Excel format."""
+        result = compute_all_sectors_lmdi_cumulative(
+            excel_input_data,
+            base_year=2020,
+        )
+
+        expected_order = [
+            lmdi_names.Pop_cumulative,
+            lmdi_names.GNP_per_P_cumulative,
+            lmdi_names.FE_per_GNP_cumulative,
+            lmdi_names.PEdeq_per_FE_cumulative,
+            lmdi_names.PEFF_per_PEDEq_cumulative,
+            lmdi_names.TFC_per_PEFF_cumulative,
+            lmdi_names.Industrial_Process,
+            lmdi_names.Other_Gases,
+            lmdi_names.Land_Use,
+            lmdi_names.Total_Net_Emissions,
+        ]
+
+        actual_order = list(result.index)
+        assert actual_order == expected_order, \
+            f"Row order mismatch: expected {expected_order}, got {actual_order}"

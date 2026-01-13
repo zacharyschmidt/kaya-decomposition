@@ -12,9 +12,7 @@ from kaya_decomposition.constants import (
 from kaya_decomposition.variables import compute_kaya_variables
 from kaya_decomposition.factors import compute_kaya_factors
 from kaya_decomposition.lmdi_cumulative import (
-    compute_lmdi_cumulative,
     compute_lmdi_cumulative_sum,
-    _logarithmic_mean,
 )
 
 
@@ -402,11 +400,109 @@ def _compute_sector_lmdi_cumulative(sector_data, base_year, variable_name, outpu
     return pyam.IamDataFrame(pd.DataFrame(result_rows))
 
 
+def _trapezoidal_integrate_sector(var_data, start_year, end_year):
+    """Integrate values using trapezoidal rule for non-Kaya sectors.
+
+    Parameters
+    ----------
+    var_data : pd.DataFrame
+        Data for a single variable with 'year' and 'value' columns.
+    start_year : int
+        Start of period (exclusive - base year has 0 contribution).
+    end_year : int
+        End of period (inclusive).
+
+    Returns
+    -------
+    float
+        Integrated sum in original units (Mt CO2).
+    """
+    years = sorted(var_data["year"].unique())
+
+    total = 0
+    prev_year = None
+    prev_val = None
+
+    for year in years:
+        val = var_data[var_data["year"] == year]["value"].values[0]
+
+        if prev_year is not None:
+            # Only integrate segments within the period
+            seg_start = max(prev_year, start_year)
+            seg_end = min(year, end_year)
+
+            if seg_start < seg_end:
+                # Interpolate values at segment boundaries if needed
+                if prev_year < seg_start:
+                    frac = (seg_start - prev_year) / (year - prev_year)
+                    v1 = prev_val + frac * (val - prev_val)
+                else:
+                    v1 = prev_val
+
+                if year > seg_end:
+                    frac = (seg_end - prev_year) / (year - prev_year)
+                    v2 = prev_val + frac * (val - prev_val)
+                else:
+                    v2 = val
+
+                # Trapezoidal area
+                area = (v1 + v2) / 2 * (seg_end - seg_start)
+                total += area
+
+        prev_year = year
+        prev_val = val
+
+    return total
+
+
+def _compute_sector_period_sum(sector_lmdi, periods, integration_method="trapezoidal"):
+    """Compute period sums for a non-Kaya sector.
+
+    Parameters
+    ----------
+    sector_lmdi : pyam.IamDataFrame
+        Output from _compute_sector_lmdi_cumulative.
+    periods : list of tuples
+        List of (start_year, end_year) periods.
+    integration_method : str
+        "trapezoidal" or "endpoint".
+
+    Returns
+    -------
+    dict
+        Dictionary mapping period labels to sum values in Gt CO2.
+    """
+    if sector_lmdi is None:
+        return None
+
+    data = sector_lmdi.data
+    variable = data["variable"].iloc[0]
+
+    result = {}
+    for start_year, end_year in periods:
+        period_label = f"{start_year} to {end_year}"
+
+        if integration_method == "trapezoidal":
+            var_data = data.sort_values("year")
+            period_sum = _trapezoidal_integrate_sector(var_data, start_year, end_year)
+        else:
+            available_years = sorted(data["year"].unique())
+            years_in_period = [y for y in available_years if start_year < y <= end_year]
+            period_sum = data[data["year"].isin(years_in_period)]["value"].sum()
+
+        # Convert Mt to Gt
+        result[period_label] = period_sum / 1000
+
+    return {variable: result}
+
+
 def compute_all_sectors_lmdi_cumulative(
     input_data,
     base_year=2020,
     scenario=None,
     periods=None,
+    integration_method="trapezoidal",
+    use_corrected=False,
 ):
     """Compute cumulative LMDI for all emission sectors.
 
@@ -424,6 +520,12 @@ def compute_all_sectors_lmdi_cumulative(
         Scenario to analyze. If None, uses first available.
     periods : list of tuples, optional
         Periods to sum over. Default: [(2020, 2050), (2050, 2100), (2020, 2100)]
+    integration_method : str, optional
+        Method for computing period sums:
+        - "trapezoidal" (default): Trapezoidal integration, matches Excel methodology
+        - "endpoint": Simple sum of endpoint values (legacy behavior)
+    use_corrected : bool, optional
+        If True, use corrected (non-negative) values. Default False matches Excel.
 
     Returns
     -------
@@ -441,6 +543,7 @@ def compute_all_sectors_lmdi_cumulative(
         - Total Net Emissions
 
         Columns are period labels (e.g., "2020 to 2050").
+        Values are in Gt CO2.
 
     Example
     -------
@@ -476,16 +579,23 @@ def compute_all_sectors_lmdi_cumulative(
     kaya_vars = compute_kaya_variables(input_data)
     kaya_factors = compute_kaya_factors(kaya_vars)
 
-    # 2. Compute cumulative LMDI for Kaya factors
-    kaya_lmdi = compute_lmdi_cumulative(kaya_factors, base_year=base_year)
+    # 2. Compute cumulative LMDI sum for Kaya factors using new method
+    result = compute_lmdi_cumulative_sum(
+        kaya_factors,
+        base_year=base_year,
+        periods=periods,
+        integration_method=integration_method,
+        use_corrected=use_corrected,
+    )
 
-    # 3. Compute contributions for additional sectors
+    # 3. Compute contributions for additional sectors with trapezoidal integration
     # Industrial Process Carbon
     nic = compute_industrial_process_emissions(input_data)
     nic_lmdi = _compute_sector_lmdi_cumulative(
         nic, base_year, "Net Industrial Carbon",
         lmdi_cumulative_names.Industrial_Process
     )
+    nic_sums = _compute_sector_period_sum(nic_lmdi, periods, integration_method)
 
     # Other Gases
     other_gases = compute_other_gases_emissions(input_data)
@@ -493,6 +603,7 @@ def compute_all_sectors_lmdi_cumulative(
         other_gases, base_year, "Emissions|Other Gases|CO2-equivalent",
         lmdi_cumulative_names.Other_Gases
     )
+    other_gases_sums = _compute_sector_period_sum(other_gases_lmdi, periods, integration_method)
 
     # Land Use
     land_use = compute_land_use_emissions(input_data)
@@ -500,22 +611,16 @@ def compute_all_sectors_lmdi_cumulative(
         land_use, base_year, "Emissions|CO2|Land Use",
         lmdi_cumulative_names.Land_Use
     )
+    land_use_sums = _compute_sector_period_sum(land_use_lmdi, periods, integration_method)
 
-    # 4. Combine all LMDI results
-    all_lmdi_frames = [kaya_lmdi]
-    if nic_lmdi is not None:
-        all_lmdi_frames.append(nic_lmdi)
-    if other_gases_lmdi is not None:
-        all_lmdi_frames.append(other_gases_lmdi)
-    if land_use_lmdi is not None:
-        all_lmdi_frames.append(land_use_lmdi)
+    # 4. Add non-Kaya sector rows to result
+    for sector_sums in [nic_sums, other_gases_sums, land_use_sums]:
+        if sector_sums is not None:
+            for var_name, period_values in sector_sums.items():
+                for period_label, value in period_values.items():
+                    result.loc[var_name, period_label] = value
 
-    combined_lmdi = pyam.concat(all_lmdi_frames)
-
-    # 5. Sum over periods
-    result = compute_lmdi_cumulative_sum(combined_lmdi, periods=periods)
-
-    # 6. Add Total Net Emissions row
+    # 5. Add Total Net Emissions row
     total_row = result.sum(axis=0)
     result.loc[lmdi_cumulative_names.Total_Net_Emissions] = total_row
 

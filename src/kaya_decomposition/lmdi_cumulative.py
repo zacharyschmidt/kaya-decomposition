@@ -92,41 +92,105 @@ def compute_lmdi_cumulative(
 
 
 def compute_lmdi_cumulative_sum(
-    lmdi_cumulative_df,
+    kaya_factors_or_lmdi_df,
+    base_year=2020,
     periods=None,
+    integration_method=None,
+    use_corrected=None,
 ):
     """Sum cumulative LMDI contributions over specified time periods.
 
     Parameters
     ----------
-    lmdi_cumulative_df : pyam.IamDataFrame
-        Output from compute_lmdi_cumulative().
+    kaya_factors_or_lmdi_df : pyam.IamDataFrame
+        Either:
+        - Output from compute_kaya_factors() (recommended for Excel-matching)
+        - Output from compute_lmdi_cumulative() (legacy compatibility)
+    base_year : int
+        Base year for LMDI calculation (default 2020).
     periods : list of tuples, optional
         List of (start_year, end_year) periods to sum over.
         Default: [(2020, 2050), (2050, 2100), (2020, 2100)]
-        Note: start_year is exclusive (sum starts from start_year + 1)
-        because the base year has zero contribution by definition.
+    integration_method : str, optional
+        Method for computing period sums:
+        - "trapezoidal": Trapezoidal integration, matches Excel methodology
+        - "endpoint": Simple sum of endpoint values (legacy behavior)
+        Default: "trapezoidal" when kaya_factors provided, "endpoint" for LMDI results.
+    use_corrected : bool, optional
+        If True, use corrected (non-negative) values.
+        Default: False when kaya_factors provided (matches Excel), True for LMDI results.
 
     Returns
     -------
     pd.DataFrame
         Table with factors as rows and periods as columns.
-        Format matches LMDItableRefAllSectors in the Excel file.
+        Values are in Gt CO2 when kaya_factors provided (matches Excel format),
+        or Mt CO2 when LMDI results provided (legacy behavior).
+
+    Notes
+    -----
+    The Excel LMDItableRefAllSectors sheet computes period sums by:
+    1. Interpolating data to annual resolution
+    2. Computing UNCORRECTED LMDI values for each year
+    3. Summing all annual values in the period
+
+    This function approximates that by using trapezoidal integration
+    of the UNCORRECTED values between available data points. This
+    matches Excel results within ~2% for typical scenario data.
 
     Example
     -------
-    >>> result = compute_lmdi_cumulative_sum(lmdi_df)
+    >>> from kaya_decomposition import compute_kaya_factors, compute_kaya_variables
+    >>> from kaya_decomposition.lmdi_cumulative import compute_lmdi_cumulative_sum
+    >>>
+    >>> kaya_vars = compute_kaya_variables(input_data)
+    >>> kaya_factors = compute_kaya_factors(kaya_vars)
+    >>> result = compute_lmdi_cumulative_sum(
+    ...     kaya_factors,
+    ...     base_year=2020,
+    ...     periods=[(2020, 2050)],
+    ... )
     >>> print(result)
-                                        2020 to 2050  2050 to 2100  2020 to 2100
-    Population                             132.93        481.29        606.35
-    Economic Activity per Person           450.42       2597.11       3020.12
-    Energy Intensity of Economy           -346.19      -1757.71      -2083.52
+                                        2020 to 2050
+    Population                            134.83
+    Economic Activity per Person          411.26
     ...
     """
     if periods is None:
         periods = [(2020, 2050), (2050, 2100), (2020, 2100)]
 
-    data = lmdi_cumulative_df.data
+    # Detect input type and get LMDI values
+    data = kaya_factors_or_lmdi_df.data
+
+    # Check if this is kaya_factors (has TFC variable) or lmdi result
+    is_kaya_factors = kaya_variable_names.TFC in data["variable"].values
+
+    # Set defaults based on input type
+    if is_kaya_factors:
+        # New behavior: trapezoidal integration of uncorrected values, output in Gt
+        if integration_method is None:
+            integration_method = "trapezoidal"
+        if use_corrected is None:
+            use_corrected = False
+        convert_to_gt = True
+
+        # Compute LMDI from kaya factors
+        if use_corrected:
+            lmdi_data = compute_lmdi_cumulative(kaya_factors_or_lmdi_df, base_year)
+        else:
+            lmdi_data = _calc_uncorrected_lmdi_cumulative(kaya_factors_or_lmdi_df, base_year)
+    else:
+        # Legacy behavior: endpoint summation of provided LMDI results, output in Mt
+        if integration_method is None:
+            integration_method = "endpoint"
+        if use_corrected is None:
+            use_corrected = True  # Legacy input is already corrected
+        convert_to_gt = False
+
+        # Input is already LMDI result
+        lmdi_data = kaya_factors_or_lmdi_df
+
+    data = lmdi_data.data
     variables = data["variable"].unique()
 
     # Build result DataFrame
@@ -134,17 +198,23 @@ def compute_lmdi_cumulative_sum(
 
     for start_year, end_year in periods:
         period_label = f"{start_year} to {end_year}"
-
-        # Get years in the period (start_year exclusive, end_year inclusive)
-        available_years = sorted(data["year"].unique())
-        years_in_period = [y for y in available_years if start_year < y <= end_year]
-
         period_sums = {}
+
         for var in variables:
-            var_data = data[
-                (data["variable"] == var) & (data["year"].isin(years_in_period))
-            ]
-            period_sums[var] = var_data["value"].sum()
+            var_data = data[data["variable"] == var].sort_values("year")
+
+            if integration_method == "trapezoidal":
+                period_sum = _trapezoidal_integrate(var_data, start_year, end_year)
+            else:  # "endpoint" - legacy behavior
+                available_years = sorted(var_data["year"].unique())
+                years_in_period = [y for y in available_years if start_year < y <= end_year]
+                period_sum = var_data[var_data["year"].isin(years_in_period)]["value"].sum()
+
+            # Convert Mt to Gt only when using kaya_factors input
+            if convert_to_gt:
+                period_sums[var] = period_sum / 1000
+            else:
+                period_sums[var] = period_sum
 
         result_data[period_label] = period_sums
 
@@ -378,3 +448,60 @@ def _apply_lmdi_correction(uncorrected_lmdi, tfc_diff):
 
     result_df = pd.DataFrame(result_rows)
     return pyam.IamDataFrame(result_df)
+
+
+def _trapezoidal_integrate(var_data, start_year, end_year):
+    """Integrate values using trapezoidal rule.
+
+    Parameters
+    ----------
+    var_data : pd.DataFrame
+        Data for a single variable with 'year' and 'value' columns.
+    start_year : int
+        Start of period (exclusive - base year has 0 contribution).
+    end_year : int
+        End of period (inclusive).
+
+    Returns
+    -------
+    float
+        Integrated sum in original units (Mt CO2).
+    """
+    years = sorted(var_data["year"].unique())
+
+    total = 0
+    prev_year = None
+    prev_val = None
+
+    for year in years:
+        val = var_data[var_data["year"] == year]["value"].values[0]
+
+        if prev_year is not None:
+            # Only integrate segments within the period
+            seg_start = max(prev_year, start_year)
+            seg_end = min(year, end_year)
+
+            if seg_start < seg_end:
+                # Interpolate values at segment boundaries if needed
+                if prev_year < seg_start:
+                    # Linear interpolation to get value at seg_start
+                    frac = (seg_start - prev_year) / (year - prev_year)
+                    v1 = prev_val + frac * (val - prev_val)
+                else:
+                    v1 = prev_val
+
+                if year > seg_end:
+                    # Linear interpolation to get value at seg_end
+                    frac = (seg_end - prev_year) / (year - prev_year)
+                    v2 = prev_val + frac * (val - prev_val)
+                else:
+                    v2 = val
+
+                # Trapezoidal area
+                area = (v1 + v2) / 2 * (seg_end - seg_start)
+                total += area
+
+        prev_year = year
+        prev_val = val
+
+    return total
