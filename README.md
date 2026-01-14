@@ -98,9 +98,9 @@ The following variables must be present in your input data:
 - Primary Energy|Oil
 - Primary Energy|Gas
 - Emissions|CO2|Industrial Processes
-- Emissions|CO2|Carbon Capture and Storage
-- Emissions|CO2|Carbon Capture and Storage|Biomass
-- Emissions|CO2|Fossil Fuels and Industry
+- Carbon Sequestration|CCS
+- Carbon Sequestration|CCS|Biomass
+- Emissions|CO2|Energy and Industrial Processes
 - Emissions|CO2|AFOLU
 - Carbon Sequestration|CCS|Fossil|Energy
 - Carbon Sequestration|CCS|Fossil|Industrial Processes

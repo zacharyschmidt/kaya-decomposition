@@ -162,14 +162,14 @@ def _calc_pe_ff(input_data):
 def _calc_nfc(input_data):
     input_data = input_data.copy()
     input_data.subtract(
-        input_variables.EMISSIONS_CO2_FOSSIL_FUELS_AND_INDUSTRY,
+        input_variables.EMISSIONS_CO2_ENERGY_AND_INDUSTRIAL_PROCESSES,
         input_variables.EMISSIONS_CO2_INDUSTRIAL_PROCESSES,
         "net_energy_emissions_with_biomass_ccs",
         ignore_units="Mt CO2/yr",
         append=True,
     )
     return input_data.add(
-        input_variables.EMISSIONS_CO2_CCS_BIOMASS,
+        input_variables.CCS_BIOMASS,
         "net_energy_emissions_with_biomass_ccs",
         kaya_variables.NFC,
         ignore_units="Mt CO2/yr",
@@ -193,8 +193,8 @@ def _calc_tfc(input_data):
 def _calc_ccs_fossil_energy(input_data):
     input_data = input_data.copy()
     input_data.subtract(
-        input_variables.EMISSIONS_CO2_CCS,
-        input_variables.EMISSIONS_CO2_CCS_BIOMASS,
+        input_variables.CCS,
+        input_variables.CCS_BIOMASS,
         "ccs_fossil",
         ignore_units="Mt CO2/yr",
         append=True,

@@ -1,6 +1,6 @@
 [project]
 name = "kaya-decomposition"
-version = "0.2.0"
+version = "0.3.0"
 description = "Kaya decomposition analysis for integrated-assessment scenario data"
 readme = "README.md"
 requires-python = ">=3.10"

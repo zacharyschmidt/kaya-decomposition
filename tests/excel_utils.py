@@ -55,7 +55,7 @@ VARIABLE_MAPPINGS = {
     "Emissions|CH4": "Emissions|CH4",
     "Carbon Sequestration|CCS": "Carbon Sequestration|CCS",
     "Carbon Sequestration|CCS|Biomass": "Carbon Sequestration|CCS|Biomass",
-    "Emissions|CO2|Fossil Fuels and Industry": "Emissions|CO2|Fossil Fuels and Industry",
+    "Emissions|CO2|Fossil Fuels and Industry": "Emissions|CO2|Energy and Industrial Processes",
     "Emissions|CO2|AFOLU": "Emissions|CO2|AFOLU",
     "Emissions|F-Gases": "Emissions|F-Gases",
     "Emissions|N2O": "Emissions|N2O",
@@ -79,7 +79,7 @@ UNIT_MAPPING = {
     "Emissions|CH4": "Mt CH4/yr",
     "Carbon Sequestration|CCS": "Mt CO2/yr",
     "Carbon Sequestration|CCS|Biomass": "Mt CO2/yr",
-    "Emissions|CO2|Fossil Fuels and Industry": "Mt CO2/yr",
+    "Emissions|CO2|Energy and Industrial Processes": "Mt CO2/yr",
     "Emissions|CO2|AFOLU": "Mt CO2/yr",
     "Emissions|F-Gases": "Mt CO2/yr",
     "Emissions|N2O": "kt N2O/yr",
@@ -96,8 +96,6 @@ UNIT_MAPPING = {
     "Carbon Sequestration|CCS|Fossil|Energy": "Mt CO2/yr",
     "Carbon Sequestration|CCS|Biomass|Energy": "Mt CO2/yr",
     "Carbon Sequestration|CCS|Biomass|Industrial Processes": "Mt CO2/yr",
-    "Emissions|CO2|Carbon Capture and Storage": "Mt CO2/yr",
-    "Emissions|CO2|Carbon Capture and Storage|Biomass": "Mt CO2/yr",
 }
 
 

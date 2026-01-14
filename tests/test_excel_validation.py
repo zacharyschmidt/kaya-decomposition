@@ -64,7 +64,7 @@ def excel_input_data():
             2005: 0.0, 2010: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0,
             2060: 0.0, 2070: 0.0, 2080: 0.0, 2090: 0.0, 2100: 0.0
         },
-        "Emissions|CO2|Fossil Fuels and Industry": {
+        "Emissions|CO2|Energy and Industrial Processes": {
             2005: 29393.368681, 2010: 32110.274365, 2020: 38265.562773, 2030: 43193.502605,
             2040: 46735.455910, 2050: 50944.303195, 2060: 56186.300556, 2070: 60140.393734,
             2080: 63528.846880, 2090: 67952.497919, 2100: 73019.277334
@@ -152,7 +152,7 @@ def excel_input_data():
         "Emissions|CH4": "Mt CH4/yr",
         "Carbon Sequestration|CCS": "Mt CO2/yr",
         "Carbon Sequestration|CCS|Biomass": "Mt CO2/yr",
-        "Emissions|CO2|Fossil Fuels and Industry": "Mt CO2/yr",
+        "Emissions|CO2|Energy and Industrial Processes": "Mt CO2/yr",
         "Emissions|CO2|AFOLU": "Mt CO2/yr",
         "Emissions|F-Gases": "Mt CO2/yr",  # Simplified from CO2-equiv
         "Emissions|N2O": "kt N2O/yr",
@@ -184,28 +184,6 @@ def excel_input_data():
                 "year": year,
                 "value": value,
             })
-
-    # Add required variables that may be named differently
-    # Emissions|CO2|Carbon Capture and Storage = Carbon Sequestration|CCS
-    for year in years:
-        rows.append({
-            "model": "IMAGE 3.0.1",
-            "scenario": "SSP2-Baseline",
-            "region": "World",
-            "variable": "Emissions|CO2|Carbon Capture and Storage",
-            "unit": "Mt CO2/yr",
-            "year": year,
-            "value": 0.0,
-        })
-        rows.append({
-            "model": "IMAGE 3.0.1",
-            "scenario": "SSP2-Baseline",
-            "region": "World",
-            "variable": "Emissions|CO2|Carbon Capture and Storage|Biomass",
-            "unit": "Mt CO2/yr",
-            "year": year,
-            "value": 0.0,
-        })
 
     return IamDataFrame(pd.DataFrame(rows))
 
@@ -817,7 +795,7 @@ def grubler_led_input_data():
             2005: 0.0, 2010: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0,
             2060: 0.0, 2070: 0.0, 2080: 0.0, 2090: 0.0, 2100: 0.0
         },
-        "Emissions|CO2|Fossil Fuels and Industry": {
+        "Emissions|CO2|Energy and Industrial Processes": {
             2005: 30874.045870, 2010: 33133.194490, 2020: 37148.024860, 2030: 42507.302020,
             2040: 47740.715230, 2050: 53614.470790, 2060: 59467.087800, 2070: 65089.404510,
             2080: 74067.977700, 2090: 81276.948460, 2100: 86165.767690
@@ -903,7 +881,7 @@ def grubler_led_input_data():
         "Emissions|CH4": "Mt CH4/yr",
         "Carbon Sequestration|CCS": "Mt CO2/yr",
         "Carbon Sequestration|CCS|Biomass": "Mt CO2/yr",
-        "Emissions|CO2|Fossil Fuels and Industry": "Mt CO2/yr",
+        "Emissions|CO2|Energy and Industrial Processes": "Mt CO2/yr",
         "Emissions|CO2|AFOLU": "Mt CO2/yr",
         "Emissions|F-Gases": "Mt CO2/yr",
         "Emissions|N2O": "kt N2O/yr",
@@ -934,26 +912,6 @@ def grubler_led_input_data():
                 "year": year,
                 "value": value,
             })
-
-    for year in years:
-        rows.append({
-            "model": "MESSAGE-GLOBIOM 1.0",
-            "scenario": "SSP2-Baseline",
-            "region": "World",
-            "variable": "Emissions|CO2|Carbon Capture and Storage",
-            "unit": "Mt CO2/yr",
-            "year": year,
-            "value": 0.0,
-        })
-        rows.append({
-            "model": "MESSAGE-GLOBIOM 1.0",
-            "scenario": "SSP2-Baseline",
-            "region": "World",
-            "variable": "Emissions|CO2|Carbon Capture and Storage|Biomass",
-            "unit": "Mt CO2/yr",
-            "year": year,
-            "value": 0.0,
-        })
 
     return IamDataFrame(pd.DataFrame(rows))
 
@@ -1115,7 +1073,7 @@ def rockstrom_message_input_data():
             2005: 0.0, 2010: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0,
             2060: 0.0, 2070: 0.0, 2080: 0.0, 2090: 0.0, 2100: 0.0
         },
-        "Emissions|CO2|Fossil Fuels and Industry": {
+        "Emissions|CO2|Energy and Industrial Processes": {
             2005: 28924.203000, 2010: 31130.847000, 2020: 40678.836000, 2030: 50255.612000,
             2040: 62035.380000, 2050: 74049.818333, 2060: 88096.895333, 2070: 98969.662000,
             2080: 101736.158333, 2090: 105186.381667, 2100: 104519.569000
@@ -1201,7 +1159,7 @@ def rockstrom_message_input_data():
         "Emissions|CH4": "Mt CH4/yr",
         "Carbon Sequestration|CCS": "Mt CO2/yr",
         "Carbon Sequestration|CCS|Biomass": "Mt CO2/yr",
-        "Emissions|CO2|Fossil Fuels and Industry": "Mt CO2/yr",
+        "Emissions|CO2|Energy and Industrial Processes": "Mt CO2/yr",
         "Emissions|CO2|AFOLU": "Mt CO2/yr",
         "Emissions|F-Gases": "Mt CO2/yr",
         "Emissions|N2O": "kt N2O/yr",
@@ -1232,26 +1190,6 @@ def rockstrom_message_input_data():
                 "year": year,
                 "value": value,
             })
-
-    for year in years:
-        rows.append({
-            "model": "GEA",
-            "scenario": "geah_counterfactual",
-            "region": "World",
-            "variable": "Emissions|CO2|Carbon Capture and Storage",
-            "unit": "Mt CO2/yr",
-            "year": year,
-            "value": 0.0,
-        })
-        rows.append({
-            "model": "GEA",
-            "scenario": "geah_counterfactual",
-            "region": "World",
-            "variable": "Emissions|CO2|Carbon Capture and Storage|Biomass",
-            "unit": "Mt CO2/yr",
-            "year": year,
-            "value": 0.0,
-        })
 
     return IamDataFrame(pd.DataFrame(rows))
 
@@ -1392,7 +1330,7 @@ def rogelj_aim_input_data():
             2005: 0.0, 2010: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0,
             2060: 0.0, 2070: 0.0, 2080: 0.0, 2090: 0.0, 2100: 0.0
         },
-        "Emissions|CO2|Fossil Fuels and Industry": {
+        "Emissions|CO2|Energy and Industrial Processes": {
             2005: 29596.083800, 2010: 32494.788500, 2020: 39854.844100, 2030: 46944.982000,
             2040: 52928.699600, 2050: 56939.432000, 2060: 58994.532800, 2070: 61391.424100,
             2080: 63901.584300, 2090: 67041.407000, 2100: 69902.560500
@@ -1478,7 +1416,7 @@ def rogelj_aim_input_data():
         "Emissions|CH4": "Mt CH4/yr",
         "Carbon Sequestration|CCS": "Mt CO2/yr",
         "Carbon Sequestration|CCS|Biomass": "Mt CO2/yr",
-        "Emissions|CO2|Fossil Fuels and Industry": "Mt CO2/yr",
+        "Emissions|CO2|Energy and Industrial Processes": "Mt CO2/yr",
         "Emissions|CO2|AFOLU": "Mt CO2/yr",
         "Emissions|F-Gases": "Mt CO2/yr",
         "Emissions|N2O": "kt N2O/yr",
@@ -1509,26 +1447,6 @@ def rogelj_aim_input_data():
                 "year": year,
                 "value": value,
             })
-
-    for year in years:
-        rows.append({
-            "model": "AIM/CGE 2.0",
-            "scenario": "SSP2-Baseline",
-            "region": "World",
-            "variable": "Emissions|CO2|Carbon Capture and Storage",
-            "unit": "Mt CO2/yr",
-            "year": year,
-            "value": 0.0,
-        })
-        rows.append({
-            "model": "AIM/CGE 2.0",
-            "scenario": "SSP2-Baseline",
-            "region": "World",
-            "variable": "Emissions|CO2|Carbon Capture and Storage|Biomass",
-            "unit": "Mt CO2/yr",
-            "year": year,
-            "value": 0.0,
-        })
 
     return IamDataFrame(pd.DataFrame(rows))
 
@@ -1666,7 +1584,7 @@ def teske_input_data():
         "Carbon Sequestration|CCS|Biomass": {
             2015: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0
         },
-        "Emissions|CO2|Fossil Fuels and Industry": {
+        "Emissions|CO2|Energy and Industrial Processes": {
             2015: 33832.909091, 2020: 35093.636364, 2030: 39446.181818, 2040: 44305.363636, 2050: 47298.818182
         },
         "Emissions|CO2|AFOLU": {
@@ -1723,7 +1641,7 @@ def teske_input_data():
         "Emissions|CH4": "Mt CH4/yr",
         "Carbon Sequestration|CCS": "Mt CO2/yr",
         "Carbon Sequestration|CCS|Biomass": "Mt CO2/yr",
-        "Emissions|CO2|Fossil Fuels and Industry": "Mt CO2/yr",
+        "Emissions|CO2|Energy and Industrial Processes": "Mt CO2/yr",
         "Emissions|CO2|AFOLU": "Mt CO2/yr",
         "Emissions|F-Gases": "Mt CO2/yr",
         "Emissions|N2O": "kt N2O/yr",
@@ -1754,26 +1672,6 @@ def teske_input_data():
                 "year": year,
                 "value": value,
             })
-
-    for year in years:
-        rows.append({
-            "model": "Teske",
-            "scenario": "Reference (5C)",
-            "region": "World",
-            "variable": "Emissions|CO2|Carbon Capture and Storage",
-            "unit": "Mt CO2/yr",
-            "year": year,
-            "value": 0.0,
-        })
-        rows.append({
-            "model": "Teske",
-            "scenario": "Reference (5C)",
-            "region": "World",
-            "variable": "Emissions|CO2|Carbon Capture and Storage|Biomass",
-            "unit": "Mt CO2/yr",
-            "year": year,
-            "value": 0.0,
-        })
 
     return IamDataFrame(pd.DataFrame(rows))
 
@@ -3343,7 +3241,7 @@ def vanvuuren_intervention_data():
             2050: 0.094640, 2060: 0.088684, 2070: 0.071516, 2080: 0.054544,
             2090: 0.051858, 2100: 0.333669
         },
-        "Emissions|CO2|Fossil Fuels and Industry": {
+        "Emissions|CO2|Energy and Industrial Processes": {
             2005: 29390.234450, 2010: 32216.963003, 2020: 30726.317734, 2030: 19882.220089,
             2040: 9517.611017, 2050: 5911.296951, 2060: 4605.711497, 2070: 3893.185213,
             2080: 3338.707477, 2090: 3130.299653, 2100: 3301.627293
@@ -3433,7 +3331,7 @@ def vanvuuren_intervention_data():
         "Emissions|CH4": "Mt CH4/yr",
         "Carbon Sequestration|CCS": "Mt CO2/yr",
         "Carbon Sequestration|CCS|Biomass": "Mt CO2/yr",
-        "Emissions|CO2|Fossil Fuels and Industry": "Mt CO2/yr",
+        "Emissions|CO2|Energy and Industrial Processes": "Mt CO2/yr",
         "Emissions|CO2|AFOLU": "Mt CO2/yr",
         "Emissions|F-Gases": "Mt CO2/yr",
         "Emissions|N2O": "kt N2O/yr",
@@ -3464,26 +3362,6 @@ def vanvuuren_intervention_data():
                 "year": year,
                 "value": value,
             })
-
-    for year in years:
-        rows.append({
-            "model": "IMAGE 3.0.1",
-            "scenario": "IMA15-TOT",
-            "region": "World",
-            "variable": "Emissions|CO2|Carbon Capture and Storage",
-            "unit": "Mt CO2/yr",
-            "year": year,
-            "value": excel_data["Carbon Sequestration|CCS"].get(year, 0.0),
-        })
-        rows.append({
-            "model": "IMAGE 3.0.1",
-            "scenario": "IMA15-TOT",
-            "region": "World",
-            "variable": "Emissions|CO2|Carbon Capture and Storage|Biomass",
-            "unit": "Mt CO2/yr",
-            "year": year,
-            "value": excel_data["Carbon Sequestration|CCS|Biomass"].get(year, 0.0),
-        })
 
     return IamDataFrame(pd.DataFrame(rows))
 
@@ -3799,7 +3677,7 @@ def teske_intervention_data():
         "Carbon Sequestration|CCS|Biomass": {
             2015: 0.0, 2020: 0.0, 2030: 0.0, 2040: 0.0, 2050: 0.0
         },
-        "Emissions|CO2|Fossil Fuels and Industry": {
+        "Emissions|CO2|Energy and Industrial Processes": {
             2015: 33832.909091, 2020: 31794.545455, 2030: 12868.363636, 2040: 2904.090909, 2050: 35.454545
         },
         "Emissions|CO2|AFOLU": {
@@ -3856,7 +3734,7 @@ def teske_intervention_data():
         "Emissions|CH4": "Mt CH4/yr",
         "Carbon Sequestration|CCS": "Mt CO2/yr",
         "Carbon Sequestration|CCS|Biomass": "Mt CO2/yr",
-        "Emissions|CO2|Fossil Fuels and Industry": "Mt CO2/yr",
+        "Emissions|CO2|Energy and Industrial Processes": "Mt CO2/yr",
         "Emissions|CO2|AFOLU": "Mt CO2/yr",
         "Emissions|F-Gases": "Mt CO2/yr",
         "Emissions|N2O": "kt N2O/yr",
@@ -3887,26 +3765,6 @@ def teske_intervention_data():
                 "year": year,
                 "value": value,
             })
-
-    for year in years:
-        rows.append({
-            "model": "Teske",
-            "scenario": "Intervention (1.5C)",
-            "region": "World",
-            "variable": "Emissions|CO2|Carbon Capture and Storage",
-            "unit": "Mt CO2/yr",
-            "year": year,
-            "value": 0.0,
-        })
-        rows.append({
-            "model": "Teske",
-            "scenario": "Intervention (1.5C)",
-            "region": "World",
-            "variable": "Emissions|CO2|Carbon Capture and Storage|Biomass",
-            "unit": "Mt CO2/yr",
-            "year": year,
-            "value": 0.0,
-        })
 
     return IamDataFrame(pd.DataFrame(rows))
 

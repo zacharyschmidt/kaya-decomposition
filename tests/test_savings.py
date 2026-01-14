@@ -42,11 +42,11 @@ def two_scenario_multi_year_data():
         "Primary Energy|Coal": 170,
         "Primary Energy|Gas": 150,
         "Primary Energy|Oil": 175,
-        "Emissions|CO2|Fossil Fuels and Industry": 38000,  # Mt CO2/yr
+        "Emissions|CO2|Energy and Industrial Processes": 38000,  # Mt CO2/yr
         "Emissions|CO2|Industrial Processes": 1800,
         "Emissions|CO2|AFOLU": 5000,
-        "Emissions|CO2|Carbon Capture and Storage": 0,
-        "Emissions|CO2|Carbon Capture and Storage|Biomass": 0,
+        "Carbon Sequestration|CCS": 0,
+        "Carbon Sequestration|CCS|Biomass": 0,
         "Carbon Sequestration|CCS|Fossil|Energy": 0,
         "Carbon Sequestration|CCS|Fossil|Industrial Processes": 0,
         "Carbon Sequestration|CCS|Biomass|Energy": 0,
@@ -66,7 +66,7 @@ def two_scenario_multi_year_data():
         "Primary Energy|Coal": 1.15,
         "Primary Energy|Gas": 1.10,
         "Primary Energy|Oil": 0.98,
-        "Emissions|CO2|Fossil Fuels and Industry": 1.10,
+        "Emissions|CO2|Energy and Industrial Processes": 1.10,
         "Emissions|CO2|Industrial Processes": 1.08,
         "Emissions|CO2|AFOLU": 0.95,
         "Emissions|CH4": 1.03,
@@ -101,11 +101,11 @@ def two_scenario_multi_year_data():
         "Primary Energy|Coal": 140,  # Less coal
         "Primary Energy|Gas": 160,
         "Primary Energy|Oil": 150,
-        "Emissions|CO2|Fossil Fuels and Industry": 35000,  # Lower initial
+        "Emissions|CO2|Energy and Industrial Processes": 35000,  # Lower initial
         "Emissions|CO2|Industrial Processes": 1700,
         "Emissions|CO2|AFOLU": 4000,
-        "Emissions|CO2|Carbon Capture and Storage": 100,
-        "Emissions|CO2|Carbon Capture and Storage|Biomass": 50,
+        "Carbon Sequestration|CCS": 100,
+        "Carbon Sequestration|CCS|Biomass": 50,
         "Carbon Sequestration|CCS|Fossil|Energy": 80,
         "Carbon Sequestration|CCS|Fossil|Industrial Processes": 20,
         "Carbon Sequestration|CCS|Biomass|Energy": 40,
@@ -125,7 +125,7 @@ def two_scenario_multi_year_data():
         "Primary Energy|Coal": 0.85,  # Coal declines faster
         "Primary Energy|Gas": 1.02,
         "Primary Energy|Oil": 0.90,
-        "Emissions|CO2|Fossil Fuels and Industry": 0.90,  # Emissions decline
+        "Emissions|CO2|Energy and Industrial Processes": 0.90,  # Emissions decline
         "Emissions|CO2|Industrial Processes": 0.95,
         "Emissions|CO2|AFOLU": 0.85,  # Land use emissions decline
         "Carbon Sequestration|CCS|Fossil|Energy": 1.50,  # CCS grows
