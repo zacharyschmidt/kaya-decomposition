@@ -17,7 +17,7 @@ from kaya_decomposition.lmdi_cumulative import (
 from kaya_decomposition.utils import trapezoidal_integrate
 
 
-def compute_other_gases_emissions(input_data, fgas_method="aggregate"):
+def compute_other_gases_emissions(input_data, fgas_method="aggregate", missing_value=0.0):
     """Compute total non-CO2 greenhouse gas emissions in CO2-equivalent.
 
     Converts CH4, N2O, and F-gases to CO2-equivalent using AR6 GWP values.
@@ -32,6 +32,9 @@ def compute_other_gases_emissions(input_data, fgas_method="aggregate"):
           (assumes already in CO2-equivalent Mt/yr)
         - "disaggregate": Compute from individual HFC, PFC, SF6 emissions
           using their specific GWP values
+    missing_value : float, optional
+        Value to use when input data is missing. Default is 0.0.
+        Use np.nan to propagate missing data as NaN.
 
     Returns
     -------
@@ -70,14 +73,14 @@ def compute_other_gases_emissions(input_data, fgas_method="aggregate"):
 
         # Get CH4 emissions and convert to CO2-equivalent
         ch4_data = group_data[group_data["variable"] == input_variables.EMISSIONS_CH4]
-        ch4_co2eq = 0.0
+        ch4_co2eq = missing_value
         if len(ch4_data) > 0:
             # CH4 in Mt/yr, multiply by GWP to get Mt CO2-eq/yr
             ch4_co2eq = ch4_data["value"].values[0] * input_variables.GWP_CH4
 
         # Get N2O emissions and convert to CO2-equivalent
         n2o_data = group_data[group_data["variable"] == input_variables.EMISSIONS_N2O]
-        n2o_co2eq = 0.0
+        n2o_co2eq = missing_value
         if len(n2o_data) > 0:
             # N2O in kt/yr, convert to Mt and multiply by GWP
             n2o_co2eq = n2o_data["value"].values[0] * input_variables.GWP_N2O / 1000
@@ -88,7 +91,7 @@ def compute_other_gases_emissions(input_data, fgas_method="aggregate"):
             fgases_data = group_data[
                 group_data["variable"] == input_variables.EMISSIONS_FGASES
             ]
-            fgases_co2eq = 0.0
+            fgases_co2eq = missing_value
             if len(fgases_data) > 0:
                 fgases_co2eq = fgases_data["value"].values[0]
         else:
@@ -97,7 +100,7 @@ def compute_other_gases_emissions(input_data, fgas_method="aggregate"):
             hfc_data = group_data[
                 group_data["variable"] == input_variables.EMISSIONS_HFC
             ]
-            hfc_co2eq = 0.0
+            hfc_co2eq = missing_value
             if len(hfc_data) > 0:
                 hfc_co2eq = hfc_data["value"].values[0] * input_variables.GWP_HFC134A / 1000
 
@@ -105,7 +108,7 @@ def compute_other_gases_emissions(input_data, fgas_method="aggregate"):
             pfc_data = group_data[
                 group_data["variable"] == input_variables.EMISSIONS_PFC
             ]
-            pfc_co2eq = 0.0
+            pfc_co2eq = missing_value
             if len(pfc_data) > 0:
                 pfc_co2eq = pfc_data["value"].values[0] * input_variables.GWP_CF4 / 1000
 
@@ -113,7 +116,7 @@ def compute_other_gases_emissions(input_data, fgas_method="aggregate"):
             sf6_data = group_data[
                 group_data["variable"] == input_variables.EMISSIONS_SF6
             ]
-            sf6_co2eq = 0.0
+            sf6_co2eq = missing_value
             if len(sf6_data) > 0:
                 sf6_co2eq = sf6_data["value"].values[0] * input_variables.GWP_SF6 / 1000
 
@@ -135,7 +138,7 @@ def compute_other_gases_emissions(input_data, fgas_method="aggregate"):
     return pyam.IamDataFrame(pd.DataFrame(result_rows))
 
 
-def compute_industrial_process_emissions(input_data):
+def compute_industrial_process_emissions(input_data, missing_value=0.0):
     """Compute net industrial process carbon emissions.
 
     This is the industrial process emissions minus any industrial CCS.
@@ -144,6 +147,9 @@ def compute_industrial_process_emissions(input_data):
     ----------
     input_data : pyam.IamDataFrame
         Input data with Industrial Processes emissions and CCS.
+    missing_value : float, optional
+        Value to use when input data is missing. Default is 0.0.
+        Use np.nan to propagate missing data as NaN.
 
     Returns
     -------
@@ -165,7 +171,7 @@ def compute_industrial_process_emissions(input_data):
         ip_data = group_data[
             group_data["variable"] == input_variables.EMISSIONS_CO2_INDUSTRIAL_PROCESSES
         ]
-        ip_emissions = 0.0
+        ip_emissions = missing_value
         if len(ip_data) > 0:
             ip_emissions = ip_data["value"].values[0]
 

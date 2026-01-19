@@ -6,6 +6,21 @@ Kaya decomposition analysis for integrated-assessment scenario data.
 
 This library provides tools for computing Kaya decomposition factors from IAMC-format scenario data. The Kaya identity decomposes CO2 emissions into contributing factors: population, wealth per person, final energy use per dollar, energy supply loss factor, the fraction of primary energy supplied by fossil fuels, the carbon intensity of fossil fuels supplied, and the net emissions of CO2 from energy sector after sequestration.
 
+
+```
+CO2 = P × (GDP/P) × (FE/GDP) × (PE/FE) × (PEFF/PE) × (TFC/PEFF) × (NFC/TFC)
+```
+
+Where:
+- **P** = Population
+- **GDP/P** = GDP per capita (economic activity per person)
+- **FE/GDP** = Energy intensity of the economy
+- **PE/FE** = Primary to final energy ratio (energy supply losses)
+- **PEFF/PE** = Fossil fuel fraction of primary energy
+- **TFC/PEFF** = Carbon intensity of fossil energy
+- **NFC/TFC** = Net to total carbon ratio (accounts for CCS)
+
+
 Key features:
 - **Kaya Decomposition**: Compute intermediate variables and decomposition factors
 - **LMDI Analysis**: Logarithmic Mean Divisia Index for scenario comparison
@@ -144,7 +159,10 @@ Compute intermediate Kaya variables from input data.
 - `input_data` (pyam.IamDataFrame): Input data with required variables
 
 **Returns:**
-- pyam.IamDataFrame with computed variables, or None if input incomplete
+- pyam.IamDataFrame with computed Kaya variables
+
+**Raises:**
+- ValueError: If required input variables are missing from the input data
 
 #### `compute_kaya_factors(kaya_variables_frame)`
 
@@ -196,28 +214,82 @@ Sum cumulative LMDI contributions over specified time periods.
 **Returns:**
 - pd.DataFrame with factors as rows, periods as columns (values in Gt CO2)
 
+### Savings Functions
+
+#### `compute_savings(input_data, ref_scenario, int_scenario, periods, integration_method)`
+
+Compute avoided emissions (savings) from comparing two scenarios.
+
+**Parameters:**
+- `input_data` (pyam.IamDataFrame): Raw input data containing both scenarios
+- `ref_scenario` (tuple): Reference scenario (model, scenario, region)
+- `int_scenario` (tuple): Intervention scenario (model, scenario, region)
+- `periods` (list of tuples, optional): Periods to compute savings for (default: [(2020, 2050), (2050, 2100), (2020, 2100)])
+- `integration_method` (str): "trapezoidal" (default) or "endpoint"
+
+**Returns:**
+- pd.DataFrame with emission components as rows and periods as columns (values in Gt CO2)
+
+#### `compute_savings_with_percentages(input_data, ref_scenario, int_scenario, period, integration_method)`
+
+Compute savings with percentage columns for a single period.
+
+**Parameters:**
+- `input_data` (pyam.IamDataFrame): Raw input data containing both scenarios
+- `ref_scenario` (tuple): Reference scenario (model, scenario, region)
+- `int_scenario` (tuple): Intervention scenario (model, scenario, region)
+- `period` (tuple): Single period as (start_year, end_year)
+- `integration_method` (str): "trapezoidal" (default) or "endpoint"
+
+**Returns:**
+- pd.DataFrame with columns: "Gt CO2", "% of total savings", "% of reference emissions"
+
+#### `compute_lmdi_scenario_comparison(kaya_factors_df, ref_scenario, int_scenario)`
+
+Compute LMDI decomposition between two scenarios at each time point.
+
+**Parameters:**
+- `kaya_factors_df` (pyam.IamDataFrame): Output from compute_kaya_factors for both scenarios
+- `ref_scenario` (tuple): Reference scenario (model, scenario, region)
+- `int_scenario` (tuple): Intervention scenario (model, scenario, region)
+
+**Returns:**
+- pyam.IamDataFrame with LMDI contributions at each time point
+
 ### All-Sectors Functions
 
-#### `compute_other_gases_emissions(input_data, fgas_method)`
+#### `compute_other_gases_emissions(input_data, fgas_method, missing_value)`
 
 Compute total non-CO2 greenhouse gas emissions in CO2-equivalent.
 
 **Parameters:**
 - `input_data` (pyam.IamDataFrame): Input data with CH4, N2O, F-gas variables
 - `fgas_method` (str): "aggregate" (default) or "disaggregate"
+- `missing_value` (float): Value to use when input data is missing (default: 0.0). Use `np.nan` to propagate missing data as NaN.
 
 **Returns:**
 - pyam.IamDataFrame with total other gases in Mt CO2-equivalent/yr
 
-#### `compute_industrial_process_emissions(input_data)`
+#### `compute_industrial_process_emissions(input_data, missing_value)`
 
 Compute net industrial process carbon emissions (after CCS).
 
 **Parameters:**
 - `input_data` (pyam.IamDataFrame): Input data
+- `missing_value` (float): Value to use when input data is missing (default: 0.0). Use `np.nan` to propagate missing data as NaN.
 
 **Returns:**
 - pyam.IamDataFrame with Net Industrial Carbon in Mt CO2/yr
+
+#### `compute_all_sectors_emissions(input_data)`
+
+Compute total emissions breakdown for all sectors.
+
+**Parameters:**
+- `input_data` (pyam.IamDataFrame): Input data with all required variables
+
+**Returns:**
+- pyam.IamDataFrame with NFC, Net Industrial Carbon, Other Gases (CO2-eq), and Land Use emissions
 
 #### `compute_all_sectors_lmdi_cumulative(input_data, base_year, scenario, periods, integration_method, use_corrected)`
 
@@ -255,6 +327,7 @@ from kaya_decomposition.constants import (
     kaya_factors,
     lmdi,
     lmdi_cumulative,
+    savings,
 )
 
 # Input variable names
@@ -272,6 +345,10 @@ print(lmdi.Pop_LMDI)               # "Population (LMDI)"
 
 # Cumulative LMDI names (human-readable)
 print(lmdi_cumulative.Pop_cumulative)  # "Population"
+
+# Savings output labels
+print(savings.POPULATION)          # "Population"
+print(savings.ENERGY_INTENSITY)    # "Energy Intensity of Economy"
 ```
 
 ## License
