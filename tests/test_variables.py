@@ -35,11 +35,11 @@ def test_compute_kaya_variables(test_dataframe):
     assert_iamframe_equal(expected, result)
 
 
-def test_compute_kaya_variables_returns_none_when_incomplete(test_dataframe):
-    """Test that incomplete input returns None."""
+def test_compute_kaya_variables_raises_on_incomplete_input(test_dataframe):
+    """Test that incomplete input raises ValueError with descriptive message."""
     incomplete_df = test_dataframe.filter(variable="Population")
-    result = compute_kaya_variables(incomplete_df)
-    assert result is None
+    with pytest.raises(ValueError, match="missing required input variables"):
+        compute_kaya_variables(incomplete_df)
 
 
 def test_compute_kaya_variables_uses_gdp_mer_fallback(test_dataframe):
@@ -52,22 +52,23 @@ def test_compute_kaya_variables_uses_gdp_mer_fallback(test_dataframe):
     assert "GDP|PPP" not in result.variable
 
 
-def test_compute_kaya_variables_returns_none_when_no_gdp(test_dataframe):
-    """Test that kaya_variables returns None when both GDP variants unavailable."""
+def test_compute_kaya_variables_raises_when_no_gdp(test_dataframe):
+    """Test that ValueError is raised when both GDP variants are unavailable."""
     df_no_gdp = test_dataframe.filter(
         variable=["GDP|PPP", "GDP|MER"],
         keep=False,
     )
-    result = compute_kaya_variables(df_no_gdp)
-    assert result is None
+    with pytest.raises(ValueError, match="missing required input variables"):
+        compute_kaya_variables(df_no_gdp)
 
 
 def test_compute_kaya_variables_logs_missing_variables(test_dataframe, caplog):
-    """Test that missing variables are logged."""
+    """Test that missing variables are logged before raising ValueError."""
     df_no_pop = test_dataframe.filter(variable="Population", keep=False)
 
     with caplog.at_level(logging.INFO):
-        compute_kaya_variables(df_no_pop)
+        with pytest.raises(ValueError, match="missing required input variables"):
+            compute_kaya_variables(df_no_pop)
 
     # Check that the log message contains expected information
     assert "model: model_a" in caplog.text

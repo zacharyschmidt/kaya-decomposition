@@ -4,7 +4,7 @@ Kaya decomposition analysis for integrated-assessment scenario data.
 
 ## Overview
 
-This library provides tools for computing Kaya decomposition factors from IAMC-format scenario data. The Kaya identity decomposes CO2 emissions into contributing factors: population, GDP per capita, energy intensity, and carbon intensity.
+This library provides tools for computing Kaya decomposition factors from IAMC-format scenario data. The Kaya identity decomposes CO2 emissions into contributing factors: population, wealth per person, final energy use per dollar, energy supply loss factor, the fraction of primary energy supplied by fossil fuels, the carbon intensity of fossil fuels supplied, and the net emissions of CO2 from energy sector after sequestration.
 
 Key features:
 - **Kaya Decomposition**: Compute intermediate variables and decomposition factors

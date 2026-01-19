@@ -18,6 +18,11 @@ def compute_kaya_factors(kaya_variables_frame):
     pyam.IamDataFrame
         IamDataFrame with computed Kaya factors.
 
+    Raises
+    ------
+    ValueError
+        If kaya_variables_frame is None, not an IamDataFrame, or empty.
+
     Notes
     -----
     Computed factors:
@@ -29,6 +34,19 @@ def compute_kaya_factors(kaya_variables_frame):
     - TFC/PEFF (Carbon intensity of fossil energy)
     - NFC/TFC (Net to total fossil carbon ratio)
     """
+    if kaya_variables_frame is None:
+        raise ValueError(
+            "Cannot compute Kaya factors: kaya_variables_frame is None. "
+            "Ensure compute_kaya_variables() returned valid data."
+        )
+    if not isinstance(kaya_variables_frame, pyam.IamDataFrame):
+        raise ValueError(
+            f"Cannot compute Kaya factors: expected pyam.IamDataFrame, "
+            f"got {type(kaya_variables_frame).__name__}"
+        )
+    if kaya_variables_frame.empty:
+        raise ValueError("Cannot compute Kaya factors: input IamDataFrame is empty.")
+
     factors = pyam.concat(
         [
             _calc_gnp_per_p(kaya_variables_frame),

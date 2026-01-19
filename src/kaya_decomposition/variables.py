@@ -22,8 +22,13 @@ def compute_kaya_variables(input_data):
 
     Returns
     -------
-    pyam.IamDataFrame or None
-        IamDataFrame with computed Kaya variables, or None if input is incomplete.
+    pyam.IamDataFrame
+        IamDataFrame with computed Kaya variables.
+
+    Raises
+    ------
+    ValueError
+        If required input variables are missing from the input data.
 
     Notes
     -----
@@ -42,8 +47,12 @@ def compute_kaya_variables(input_data):
     - Total Fossil Carbon
     - Net Fossil Carbon
     """
-    if _is_input_data_incomplete(input_data):
-        return None
+    missing = _get_missing_variables(input_data)
+    if missing:
+        raise ValueError(
+            f"Cannot compute Kaya variables: missing required input variables. "
+            f"Missing: {sorted(missing)}"
+        )
 
     kaya_vars = pyam.concat(
         [
@@ -59,52 +68,38 @@ def compute_kaya_variables(input_data):
     return kaya_vars
 
 
-def _is_input_data_incomplete(input_data):
-    # copy data so we don't create side effects
-    # in particular, require_data will change the "exclude" series
-    input_data = input_data.copy()
-    # Get all unique model/scenario/region combinations
-    scenario_model_region = input_data.data[
-        ["model", "scenario", "region"]
-    ].drop_duplicates()
+def _get_missing_variables(input_data):
+    """Return set of missing required variables, or empty set if complete."""
+    input_vars = set(input_data.data["variable"].unique())
+    required_variables_set = make_required_variables_set(input_vars)
+    missing = required_variables_set - input_vars
 
-    # Check each combination
-    for _, row in scenario_model_region.iterrows():
-        single_combination = input_data.filter(
-            model=row["model"], scenario=row["scenario"], region=row["region"]
-        )
-
-        # Get variables present for this combination
-        single_combination_variables = set(single_combination.data["variable"].unique())
-        # special case for GDP: either form is acceptable, so don't check for either
-        # as long as one is present
-        required_variables_set = make_required_variables_set(
-            single_combination_variables
-        )
-        # Check if any required variables are missing
-        missing_variables = set(required_variables_set) - single_combination_variables
-        if missing_variables:
-            logger.info(
-                f"""Variables missing for
+    # Log missing variables per model/scenario/region for debugging
+    if missing:
+        scenario_model_region = input_data.data[
+            ["model", "scenario", "region"]
+        ].drop_duplicates()
+        for _, row in scenario_model_region.iterrows():
+            single_combination = input_data.filter(
+                model=row["model"], scenario=row["scenario"], region=row["region"]
+            )
+            single_vars = set(single_combination.data["variable"].unique())
+            single_required = make_required_variables_set(single_vars)
+            single_missing = single_required - single_vars
+            if single_missing:
+                logger.info(
+                    f"""Variables missing for
                 model: {row['model']},
                 scenario: {row['scenario']},
-                region: {row['region']}\nMissing variables: {missing_variables}"""
-            )
+                region: {row['region']}\nMissing variables: {single_missing}"""
+                )
 
-    # special case for GDP: either form is acceptable, so don't check for either
-    # as long as one is present
-    required_variables_set = make_required_variables_set(
-        set(input_data.data["variable"].unique())
-    )
-    # exclude model/scenario combinations that have missing variables,
-    # disregarding region. even if all variables are not present for a region,
-    # arithmetic operations will return an empty dataframe,
-    # not throw an error, so it is safe to proceed
-    input_data.require_data(variable=list(required_variables_set), exclude_on_fail=True)
-    # supress warning about empty dataframe if filtering excludes all scenarios
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        return input_data.filter(exclude=False).empty
+    return missing
+
+
+def _is_input_data_incomplete(input_data):
+    """Check if input data is missing required variables."""
+    return bool(_get_missing_variables(input_data))
 
 
 def make_required_variables_set(input_vars):
