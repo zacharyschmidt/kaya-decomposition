@@ -41,6 +41,14 @@ REQUIRED_VARIABLES = [
     CCS_BIOMASS_INDUSTRY,
 ]
 
+# Modern IAMC nomenclature (iamconsortium/common-definitions) for carbon
+# dioxide removal — not yet reported by any dataset in this repo, included
+# for forward compatibility. Preferred over the legacy CCS|Biomass variables
+# when present; see compute_total_cdr().
+CARBON_REMOVAL_BIOMASS = "Carbon Removal|Geological Storage|Biomass"
+CARBON_REMOVAL_DACCS = "Carbon Removal|Geological Storage|Direct Air Capture"
+CARBON_REMOVAL_LAND_USE = "Carbon Removal|Land Use"
+
 # Optional input variables for all-sectors analysis
 # Non-CO2 greenhouse gases (for OtherGases calculation)
 EMISSIONS_CH4 = "Emissions|CH4"

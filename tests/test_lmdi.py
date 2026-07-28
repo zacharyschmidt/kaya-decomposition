@@ -26,12 +26,12 @@ def test_compute_lmdi(two_scenario_dataframe):
     expected = IamDataFrame(
         pd.DataFrame(
             [
-                [lmdi_names.FE_per_GNP_LMDI, "unknown", 1.321788],
+                [lmdi_names.FE_per_GNP_LMDI, "unknown", 1.297920],
                 [lmdi_names.GNP_per_P_LMDI, "unknown", 0],
-                [lmdi_names.PEdeq_per_FE_LMDI, "unknown", 0.816780],
+                [lmdi_names.PEdeq_per_FE_LMDI, "unknown", 0.802031],
                 [lmdi_names.PEFF_per_PEDEq_LMDI, "unknown", 0],
                 [lmdi_names.Pop_LMDI, "unknown", 0],
-                [lmdi_names.TFC_per_PEFF_LMDI, "unknown", 4.853221],
+                [lmdi_names.TFC_per_PEFF_LMDI, "unknown", 4.544600],
             ],
             columns=["variable", "unit", 2010],
         ),

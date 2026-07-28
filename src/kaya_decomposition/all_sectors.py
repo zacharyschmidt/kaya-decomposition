@@ -141,7 +141,11 @@ def compute_other_gases_emissions(input_data, fgas_method="aggregate", missing_v
 def compute_industrial_process_emissions(input_data, missing_value=0.0):
     """Compute net industrial process carbon emissions.
 
-    This is the industrial process emissions minus any industrial CCS.
+    Net Industrial Carbon (NIC) is gross industrial carbon less only *fossil*
+    industrial CCS. The reported ``Emissions|CO2|Industrial Processes`` is
+    already net of both fossil and biomass industrial CCS, so this adds back
+    biomass-industrial CCS (its biogenic credit belongs in CDR, not fossil
+    abatement) and does not subtract fossil-industrial CCS again.
 
     Parameters
     ----------
@@ -175,14 +179,6 @@ def compute_industrial_process_emissions(input_data, missing_value=0.0):
         if len(ip_data) > 0:
             ip_emissions = ip_data["value"].values[0]
 
-        # Get CCS from fossil industrial processes
-        ccs_fossil_ip = group_data[
-            group_data["variable"] == input_variables.CCS_FOSSIL_INDUSTRY
-        ]
-        ccs_fossil = 0.0
-        if len(ccs_fossil_ip) > 0:
-            ccs_fossil = ccs_fossil_ip["value"].values[0]
-
         # Get CCS from biomass industrial processes
         ccs_biomass_ip = group_data[
             group_data["variable"] == input_variables.CCS_BIOMASS_INDUSTRY
@@ -191,8 +187,13 @@ def compute_industrial_process_emissions(input_data, missing_value=0.0):
         if len(ccs_biomass_ip) > 0:
             ccs_biomass = ccs_biomass_ip["value"].values[0]
 
-        # Net industrial carbon = gross emissions - CCS
-        nic = ip_emissions - ccs_fossil - ccs_biomass
+        # Reported Industrial Processes CO2 is net of BOTH fossil and biomass
+        # industrial CCS. Add back biomass-industrial CCS so NIC nets out only
+        # FOSSIL sequestration (Koomey: NIC = gross industrial - fossil CCS).
+        # Do NOT subtract fossil CCS again — it is already netted out in the
+        # reported input. The biomass credit is applied once, via
+        # compute_total_cdr().
+        nic = ip_emissions + ccs_biomass
 
         result_rows.append({
             "model": model,
@@ -319,6 +320,137 @@ def compute_land_use_emissions(input_data):
     return pyam.IamDataFrame(pd.DataFrame(result_rows))
 
 
+def compute_total_cdr(input_data, missing_value=0.0):
+    """Compute total carbon dioxide removal (CDR).
+
+    CDR removes CO2 already in the atmosphere or biosphere: bioenergy with
+    carbon capture and storage (BECCS), direct air capture (DACCS), and
+    land-based removal. It explicitly excludes fossil CCS, which prevents
+    a would-be emission (abatement) rather than removing existing CO2.
+
+    For the biomass component, the modern IAMC ``Carbon Removal|Geological
+    Storage|Biomass`` variable is preferred when reported for a given
+    model/scenario/region/year; otherwise this falls back to the legacy
+    ``Carbon Sequestration|CCS|Biomass|Energy`` + ``...|Industrial
+    Processes`` split, which is the only source in currently available
+    datasets. The two are never summed together. DACCS and land-based
+    removal have no legacy equivalent and default to zero when absent.
+
+    Parameters
+    ----------
+    input_data : pyam.IamDataFrame
+        Input data with any of the carbon removal variables.
+    missing_value : float, optional
+        Value to use when a removal variable is missing. Default is 0.0.
+
+    Returns
+    -------
+    pyam.IamDataFrame
+        Total CDR in Mt CO2/yr, reported as a negative value (removal).
+        Variable name: "Carbon Dioxide Removal"
+    """
+    data = input_data.data
+    result_rows = []
+
+    groupby_cols = ["model", "scenario", "region", "year"]
+    groups = data.groupby(groupby_cols)
+
+    for group_key, group_data in groups:
+        model, scenario, region, year = group_key
+
+        def _lookup(variable):
+            rows = group_data[group_data["variable"] == variable]
+            return rows["value"].values[0] if len(rows) > 0 else None
+
+        biomass = _lookup(input_variables.CARBON_REMOVAL_BIOMASS)
+        if biomass is None:
+            biomass_energy = _lookup(input_variables.CCS_BIOMASS_ENERGY)
+            biomass_industry = _lookup(input_variables.CCS_BIOMASS_INDUSTRY)
+            biomass = (
+                (biomass_energy or missing_value)
+                + (biomass_industry or missing_value)
+            )
+
+        daccs = _lookup(input_variables.CARBON_REMOVAL_DACCS)
+        if daccs is None:
+            daccs = missing_value
+
+        land_use = _lookup(input_variables.CARBON_REMOVAL_LAND_USE)
+        if land_use is None:
+            land_use = missing_value
+
+        # Removal variables are reported as positive sequestration; CDR
+        # is the negative of total removals.
+        cdr = -(biomass + daccs + land_use)
+
+        result_rows.append({
+            "model": model,
+            "scenario": scenario,
+            "region": region,
+            "variable": "Carbon Dioxide Removal",
+            "unit": "Mt CO2/yr",
+            "year": year,
+            "value": cdr,
+        })
+
+    return pyam.IamDataFrame(pd.DataFrame(result_rows))
+
+
+def compute_fossil_energy_ccs(input_data, missing_value=0.0):
+    """Compute fossil-energy CCS as a negative abatement term.
+
+    Fossil-energy CCS prevents would-be fossil emissions (abatement), so it is
+    returned here as a negative value. It is used only by the cumulative
+    all-sectors table, whose fossil chain decomposes *gross* Total Fossil Carbon
+    (TFC); this row subtracts the fossil-energy capture so the total nets out.
+
+    Fossil *industrial* CCS is deliberately excluded — it is already netted into
+    Net Industrial Carbon (see ``compute_industrial_process_emissions``). The
+    levels function ``compute_all_sectors_emissions`` does not use this term
+    either, because there NFC is already net of fossil-energy CCS.
+
+    Parameters
+    ----------
+    input_data : pyam.IamDataFrame
+        Input data with Carbon Sequestration|CCS|Fossil|Energy.
+    missing_value : float, optional
+        Value to use when the variable is missing. Default is 0.0.
+
+    Returns
+    -------
+    pyam.IamDataFrame
+        Fossil-energy CCS in Mt CO2/yr, reported as a negative value.
+        Variable name: "Fossil Energy CCS"
+    """
+    data = input_data.data
+    result_rows = []
+
+    groupby_cols = ["model", "scenario", "region", "year"]
+    groups = data.groupby(groupby_cols)
+
+    for group_key, group_data in groups:
+        model, scenario, region, year = group_key
+
+        ccs_rows = group_data[
+            group_data["variable"] == input_variables.CCS_FOSSIL_ENERGY
+        ]
+        fossil_energy_ccs = missing_value
+        if len(ccs_rows) > 0:
+            fossil_energy_ccs = ccs_rows["value"].values[0]
+
+        result_rows.append({
+            "model": model,
+            "scenario": scenario,
+            "region": region,
+            "variable": "Fossil Energy CCS",
+            "unit": "Mt CO2/yr",
+            "year": year,
+            "value": -fossil_energy_ccs,
+        })
+
+    return pyam.IamDataFrame(pd.DataFrame(result_rows))
+
+
 def compute_all_sectors_emissions(input_data):
     """Compute total emissions breakdown for all sectors.
 
@@ -327,6 +459,7 @@ def compute_all_sectors_emissions(input_data):
     - NIC (Net Industrial Carbon) - industrial processes
     - Other Gases (CH4 + N2O + F-gases in CO2-eq)
     - Land Use (AFOLU)
+    - Total CDR (carbon dioxide removal)
     - Total Net Emissions
 
     Parameters
@@ -349,9 +482,10 @@ def compute_all_sectors_emissions(input_data):
     nic = compute_industrial_process_emissions(input_data)
     other_gases = compute_other_gases_emissions(input_data)
     land_use = compute_land_use_emissions(input_data)
+    cdr = compute_total_cdr(input_data)
 
     # Combine all
-    result = pyam.concat([nfc, nic, other_gases, land_use])
+    result = pyam.concat([nfc, nic, other_gases, land_use, cdr])
 
     return result
 
@@ -496,6 +630,8 @@ def compute_all_sectors_lmdi_cumulative(
         - Industrial Process Carbon Emissions
         - Other Gases
         - Land Use
+        - Fossil Energy CCS
+        - Total CDR
         - Total Net Emissions
 
         Columns are period labels (e.g., "2020 to 2050").
@@ -572,8 +708,29 @@ def compute_all_sectors_lmdi_cumulative(
     )
     land_use_sums = _compute_sector_period_sum(land_use_lmdi, periods, integration_method)
 
+    # Total CDR
+    cdr = compute_total_cdr(input_data)
+    cdr_lmdi = _compute_sector_lmdi_cumulative(
+        cdr, base_year, "Carbon Dioxide Removal",
+        lmdi_cumulative_names.Total_CDR
+    )
+    cdr_sums = _compute_sector_period_sum(cdr_lmdi, periods, integration_method)
+
+    # Fossil Energy CCS (abatement over the gross-TFC fossil chain). Fossil
+    # industrial CCS is already netted into Net Industrial Carbon.
+    fossil_ccs = compute_fossil_energy_ccs(input_data)
+    fossil_ccs_lmdi = _compute_sector_lmdi_cumulative(
+        fossil_ccs, base_year, "Fossil Energy CCS",
+        lmdi_cumulative_names.Fossil_Energy_CCS
+    )
+    fossil_ccs_sums = _compute_sector_period_sum(
+        fossil_ccs_lmdi, periods, integration_method
+    )
+
     # 4. Add non-Kaya sector rows to result
-    for sector_sums in [nic_sums, other_gases_sums, land_use_sums]:
+    for sector_sums in [
+        nic_sums, other_gases_sums, land_use_sums, fossil_ccs_sums, cdr_sums
+    ]:
         if sector_sums is not None:
             for var_name, period_values in sector_sums.items():
                 for period_label, value in period_values.items():
@@ -594,6 +751,8 @@ def compute_all_sectors_lmdi_cumulative(
         lmdi_cumulative_names.Industrial_Process,
         lmdi_cumulative_names.Other_Gases,
         lmdi_cumulative_names.Land_Use,
+        lmdi_cumulative_names.Fossil_Energy_CCS,
+        lmdi_cumulative_names.Total_CDR,
         lmdi_cumulative_names.Total_Net_Emissions,
     ]
 

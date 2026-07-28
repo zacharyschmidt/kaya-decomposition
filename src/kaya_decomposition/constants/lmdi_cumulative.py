@@ -15,4 +15,9 @@ TFC_per_PEFF_cumulative = "Carbon Intensity of Fossil Energy"
 Industrial_Process = "Industrial Process Carbon Emissions"
 Other_Gases = "Other Gases"
 Land_Use = "Land Use"
+# Fossil-energy CCS as an explicit abatement line-item over the gross-TFC Kaya
+# decomposition (mirrors the Excel Savings sheet's "Fossil CCS" term). Fossil
+# *industrial* CCS is not here — it is already netted into Net Industrial Carbon.
+Fossil_Energy_CCS = "Fossil Energy CCS"
+Total_CDR = "Total CDR"
 Total_Net_Emissions = "Total Net Emissions"

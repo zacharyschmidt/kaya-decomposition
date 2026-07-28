@@ -156,16 +156,21 @@ def _calc_pe_ff(input_data):
 
 def _calc_nfc(input_data):
     input_data = input_data.copy()
+    # Reported Energy-and-IP CO2 is net of ALL CCS (including the biomass-energy
+    # credit). Subtract industrial to isolate the fossil-energy chain, then add
+    # back biomass-energy CCS so NFC nets out only FOSSIL sequestration
+    # (Koomey: NFC = TFC - fossil-energy CCS). The biomass credit is applied
+    # once, separately, via all_sectors.compute_total_cdr().
     input_data.subtract(
         input_variables.EMISSIONS_CO2_ENERGY_AND_INDUSTRIAL_PROCESSES,
         input_variables.EMISSIONS_CO2_INDUSTRIAL_PROCESSES,
-        "net_energy_emissions_with_biomass_ccs",
+        "net_energy_co2",
         ignore_units="Mt CO2/yr",
         append=True,
     )
     return input_data.add(
-        input_variables.CCS_BIOMASS,
-        "net_energy_emissions_with_biomass_ccs",
+        "net_energy_co2",
+        input_variables.CCS_BIOMASS_ENERGY,
         kaya_variables.NFC,
         ignore_units="Mt CO2/yr",
         append=False,

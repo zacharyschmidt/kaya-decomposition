@@ -2,12 +2,20 @@
 
 import logging
 
+import numpy as np
 import pandas as pd
 import pytest
 from pyam import IamDataFrame
 from pyam.testing import assert_iamframe_equal
 
-from kaya_decomposition import compute_kaya_variables
+from kaya_decomposition import compute_kaya_variables, input_variables
+
+
+def _set_variable_value(df, variable, value):
+    """Return a copy of df with every row for `variable` set to `value`."""
+    data = df.data.copy()
+    data.loc[data["variable"] == variable, "value"] = value
+    return IamDataFrame(data)
 
 
 def test_compute_kaya_variables(test_dataframe):
@@ -22,8 +30,8 @@ def test_compute_kaya_variables(test_dataframe):
                 ["Final Energy", "EJ/yr", 8.0],
                 ["Primary Energy", "EJ/yr", 10.0],
                 ["Primary Energy|Fossil", "EJ/yr", 9.0],
-                ["Total Fossil Carbon", "Mt CO2/yr", 12.0],
-                ["Net Fossil Carbon", "Mt CO2/yr", 10.0],
+                ["Total Fossil Carbon", "Mt CO2/yr", 11.5],
+                ["Net Fossil Carbon", "Mt CO2/yr", 9.5],
             ],
             columns=["variable", "unit", 2010],
         ),
@@ -60,6 +68,41 @@ def test_compute_kaya_variables_raises_when_no_gdp(test_dataframe):
     )
     with pytest.raises(ValueError, match="missing required input variables"):
         compute_kaya_variables(df_no_gdp)
+
+
+def _nfc(df):
+    return compute_kaya_variables(df).filter(
+        variable="Net Fossil Carbon"
+    ).data["value"].values[0]
+
+
+def test_nfc_adds_back_biomass_energy_ccs(test_dataframe):
+    """NFC adds back biomass-energy CCS to strip the biogenic credit.
+
+    The reported Energy-and-IP CO2 is net of biomass-energy CCS. NFC must add
+    that credit back so it nets out only *fossil* sequestration; the biogenic
+    removal is accounted once, separately, via CDR. So raising biomass-energy
+    CCS by delta (input emissions held fixed) raises NFC by exactly delta.
+    """
+    baseline_nfc = _nfc(test_dataframe)  # (10 - 1) + 0.5 = 9.5
+
+    df_more = _set_variable_value(
+        test_dataframe, input_variables.CCS_BIOMASS_ENERGY, 10.5
+    )
+    assert np.isclose(_nfc(df_more), baseline_nfc + 10.0)
+
+
+def test_nfc_equals_tfc_minus_fossil_energy_ccs(test_dataframe):
+    """NFC = TFC - fossil-energy CCS (Koomey definition of net fossil carbon)."""
+    result = compute_kaya_variables(test_dataframe)
+    nfc = result.filter(variable="Net Fossil Carbon").data["value"].values[0]
+    tfc = result.filter(variable="Total Fossil Carbon").data["value"].values[0]
+
+    # fossil-energy CCS = CCS - CCS|Biomass - CCS|Fossil|Industrial = 4 - 1 - 1
+    fossil_energy_ccs = 2.0
+    assert np.isclose(nfc, tfc - fossil_energy_ccs)
+    assert np.isclose(nfc, 9.5)
+    assert np.isclose(tfc, 11.5)
 
 
 def test_compute_kaya_variables_logs_missing_variables(test_dataframe, caplog):

@@ -200,8 +200,8 @@ class TestComputeIndustrialProcessEmissions:
         result = compute_industrial_process_emissions(multi_year_all_sectors_dataframe)
         assert "Net Industrial Carbon" in result.variable
 
-    def test_subtracts_ccs(self):
-        """Test that CCS is subtracted from gross emissions."""
+    def test_adds_back_biomass_ccs(self):
+        """Test that biomass-industrial CCS is added back, fossil is not re-subtracted."""
         # Create test data with CCS
         data = pd.DataFrame([
             {
@@ -237,8 +237,64 @@ class TestComputeIndustrialProcessEmissions:
         result = compute_industrial_process_emissions(test_df)
         nic = result.filter(year=2020).data["value"].values[0]
 
-        # Net Industrial Carbon = 1000 - 200 - 100 = 700
-        assert np.isclose(nic, 700)
+        # Reported IP (1000) is already net of fossil-industrial CCS (200), so
+        # fossil CCS is NOT subtracted again; biomass-industrial CCS (100) is
+        # added back to strip its biogenic credit out of the fossil chain.
+        # NIC = 1000 + 100 = 1100.
+        assert np.isclose(nic, 1100)
+
+    def test_nic_adds_back_biomass_ccs(self):
+        """NIC adds back biomass-industrial CCS (input held fixed).
+
+        The reported industrial-process CO2 is net of biomass-industrial CCS.
+        NIC adds that credit back so it nets out only *fossil* sequestration;
+        the biogenic removal is accounted once, separately, via CDR. So raising
+        biomass-industrial CCS by delta raises NIC by exactly delta.
+        """
+        base_rows = [
+            {
+                "model": "Test",
+                "scenario": "Test",
+                "region": "World",
+                "variable": "Emissions|CO2|Industrial Processes",
+                "unit": "Mt CO2/yr",
+                "year": 2020,
+                "value": 1000,
+            },
+            {
+                "model": "Test",
+                "scenario": "Test",
+                "region": "World",
+                "variable": "Carbon Sequestration|CCS|Fossil|Industrial Processes",
+                "unit": "Mt CO2/yr",
+                "year": 2020,
+                "value": 200,
+            },
+        ]
+        baseline_df = IamDataFrame(pd.DataFrame(base_rows))
+        high_biomass_df = IamDataFrame(pd.DataFrame(base_rows + [
+            {
+                "model": "Test",
+                "scenario": "Test",
+                "region": "World",
+                "variable": "Carbon Sequestration|CCS|Biomass|Industrial Processes",
+                "unit": "Mt CO2/yr",
+                "year": 2020,
+                "value": 500,
+            },
+        ]))
+
+        nic_baseline = compute_industrial_process_emissions(
+            baseline_df
+        ).filter(year=2020).data["value"].values[0]
+        nic_high_biomass = compute_industrial_process_emissions(
+            high_biomass_df
+        ).filter(year=2020).data["value"].values[0]
+
+        # baseline has no biomass-industrial CCS (NIC = 1000); the variant adds
+        # 500, which is added back into NIC (fossil CCS is never re-subtracted).
+        assert np.isclose(nic_baseline, 1000)
+        assert np.isclose(nic_high_biomass, nic_baseline + 500)
 
 
 class TestComputeTotalIndustrialCarbon:
@@ -310,10 +366,12 @@ class TestComputeTotalIndustrialCarbon:
             assert np.isclose(tic, nic), \
                 f"Year {year}: TIC {tic} should equal NIC {nic} when no CCS"
 
-    def test_tic_minus_nic_equals_twice_ccs(self):
-        """Test that TIC - NIC = 2 * CCS.
+    def test_tic_minus_nic_equals_fossil_ccs(self):
+        """Test that TIC - NIC = fossil industrial CCS.
 
-        Since TIC = IP + CCS and NIC = IP - CCS, their difference is 2*CCS.
+        TIC = IP + fossil_CCS + biomass_CCS (gross, all captured carbon added
+        back). NIC = IP + biomass_CCS (fossil CCS already netted in the input;
+        biomass added back). Their difference is therefore fossil_CCS.
         """
         from kaya_decomposition.all_sectors import compute_total_industrial_carbon
         # Create test data with CCS
@@ -354,10 +412,10 @@ class TestComputeTotalIndustrialCarbon:
         tic = tic_result.filter(year=2020).data["value"].values[0]
         nic = nic_result.filter(year=2020).data["value"].values[0]
 
-        # TIC - NIC = 2 * total CCS
-        total_ccs = 200 + 100  # fossil + biomass CCS
-        assert np.isclose(tic - nic, 2 * total_ccs), \
-            f"TIC ({tic}) - NIC ({nic}) should equal 2*CCS ({2*total_ccs})"
+        # TIC - NIC = fossil industrial CCS
+        fossil_ccs = 200
+        assert np.isclose(tic - nic, fossil_ccs), \
+            f"TIC ({tic}) - NIC ({nic}) should equal fossil_CCS ({fossil_ccs})"
 
 
 class TestComputeLandUseEmissions:
@@ -387,6 +445,136 @@ class TestComputeLandUseEmissions:
             assert np.isclose(afolu, land_use)
 
 
+class TestComputeTotalCdr:
+    """Tests for total CDR (carbon dioxide removal) calculation."""
+
+    def test_returns_iamdataframe(self, multi_year_all_sectors_dataframe):
+        """Test that function returns an IamDataFrame."""
+        from kaya_decomposition.all_sectors import compute_total_cdr
+        result = compute_total_cdr(multi_year_all_sectors_dataframe)
+        assert isinstance(result, IamDataFrame)
+
+    def test_output_variable_name(self, multi_year_all_sectors_dataframe):
+        """Test that output has correct variable name."""
+        from kaya_decomposition.all_sectors import compute_total_cdr
+        result = compute_total_cdr(multi_year_all_sectors_dataframe)
+        assert "Carbon Dioxide Removal" in result.variable
+
+    def test_zero_when_no_removal_reported(self, multi_year_all_sectors_dataframe):
+        """Test that CDR is zero when no removal variables are present."""
+        from kaya_decomposition.all_sectors import compute_total_cdr
+        # multi_year_all_sectors_dataframe has CCS == 0 everywhere and no
+        # Carbon Removal|... variables at all.
+        result = compute_total_cdr(multi_year_all_sectors_dataframe)
+        assert (result.data["value"] == 0).all()
+
+    def test_legacy_biomass_ccs_fallback(self):
+        """Test that legacy CCS|Biomass variables are used when no modern
+        Carbon Removal variable is reported."""
+        from kaya_decomposition.all_sectors import compute_total_cdr
+        data = pd.DataFrame([
+            {
+                "model": "Test", "scenario": "Test", "region": "World",
+                "variable": "Carbon Sequestration|CCS|Biomass|Energy",
+                "unit": "Mt CO2/yr", "year": 2020, "value": 40,
+            },
+            {
+                "model": "Test", "scenario": "Test", "region": "World",
+                "variable": "Carbon Sequestration|CCS|Biomass|Industrial Processes",
+                "unit": "Mt CO2/yr", "year": 2020, "value": 10,
+            },
+        ])
+        result = compute_total_cdr(IamDataFrame(data))
+        cdr = result.filter(year=2020).data["value"].values[0]
+
+        # Removal is reported as positive sequestration; CDR is negative.
+        assert np.isclose(cdr, -50)
+
+    def test_prefers_modern_biomass_variable_over_legacy(self):
+        """Test that the modern Carbon Removal variable wins over the
+        legacy CCS split, and the two are never summed together."""
+        from kaya_decomposition.all_sectors import compute_total_cdr
+        data = pd.DataFrame([
+            {
+                "model": "Test", "scenario": "Test", "region": "World",
+                "variable": input_variables.CARBON_REMOVAL_BIOMASS,
+                "unit": "Mt CO2/yr", "year": 2020, "value": 70,
+            },
+            {
+                "model": "Test", "scenario": "Test", "region": "World",
+                "variable": "Carbon Sequestration|CCS|Biomass|Energy",
+                "unit": "Mt CO2/yr", "year": 2020, "value": 40,
+            },
+            {
+                "model": "Test", "scenario": "Test", "region": "World",
+                "variable": "Carbon Sequestration|CCS|Biomass|Industrial Processes",
+                "unit": "Mt CO2/yr", "year": 2020, "value": 10,
+            },
+        ])
+        result = compute_total_cdr(IamDataFrame(data))
+        cdr = result.filter(year=2020).data["value"].values[0]
+
+        assert np.isclose(cdr, -70)
+
+    def test_includes_daccs_and_land_use(self):
+        """Test that DACCS and land-based removal are included in the total."""
+        from kaya_decomposition.all_sectors import compute_total_cdr
+        data = pd.DataFrame([
+            {
+                "model": "Test", "scenario": "Test", "region": "World",
+                "variable": input_variables.CARBON_REMOVAL_BIOMASS,
+                "unit": "Mt CO2/yr", "year": 2020, "value": 70,
+            },
+            {
+                "model": "Test", "scenario": "Test", "region": "World",
+                "variable": input_variables.CARBON_REMOVAL_DACCS,
+                "unit": "Mt CO2/yr", "year": 2020, "value": 20,
+            },
+            {
+                "model": "Test", "scenario": "Test", "region": "World",
+                "variable": input_variables.CARBON_REMOVAL_LAND_USE,
+                "unit": "Mt CO2/yr", "year": 2020, "value": 5,
+            },
+        ])
+        result = compute_total_cdr(IamDataFrame(data))
+        cdr = result.filter(year=2020).data["value"].values[0]
+
+        assert np.isclose(cdr, -95)
+
+    def test_excludes_fossil_ccs(self):
+        """Test that fossil CCS (abatement, not removal) is never included."""
+        from kaya_decomposition.all_sectors import compute_total_cdr
+        data = pd.DataFrame([
+            {
+                "model": "Test", "scenario": "Test", "region": "World",
+                "variable": "Carbon Sequestration|CCS|Fossil|Energy",
+                "unit": "Mt CO2/yr", "year": 2020, "value": 200,
+            },
+            {
+                "model": "Test", "scenario": "Test", "region": "World",
+                "variable": "Carbon Sequestration|CCS|Fossil|Industrial Processes",
+                "unit": "Mt CO2/yr", "year": 2020, "value": 100,
+            },
+        ])
+        result = compute_total_cdr(IamDataFrame(data))
+        cdr = result.filter(year=2020).data["value"].values[0]
+
+        assert np.isclose(cdr, 0)
+
+    def test_unit_is_mt_co2(self):
+        """Test that output unit is Mt CO2/yr."""
+        from kaya_decomposition.all_sectors import compute_total_cdr
+        data = pd.DataFrame([
+            {
+                "model": "Test", "scenario": "Test", "region": "World",
+                "variable": input_variables.CARBON_REMOVAL_DACCS,
+                "unit": "Mt CO2/yr", "year": 2020, "value": 20,
+            },
+        ])
+        result = compute_total_cdr(IamDataFrame(data))
+        assert set(result.unit) == {"Mt CO2/yr"}
+
+
 class TestComputeAllSectorsEmissions:
     """Tests for all-sectors emissions calculation."""
 
@@ -404,6 +592,7 @@ class TestComputeAllSectorsEmissions:
             "Net Industrial Carbon",
             "Emissions|Other Gases|CO2-equivalent",
             "Emissions|CO2|Land Use",
+            "Carbon Dioxide Removal",
         ]
 
         for var in expected_vars:
@@ -438,6 +627,8 @@ class TestComputeAllSectorsLmdiCumulative:
             lmdi_names.Industrial_Process,
             lmdi_names.Other_Gases,
             lmdi_names.Land_Use,
+            lmdi_names.Fossil_Energy_CCS,
+            lmdi_names.Total_CDR,
             lmdi_names.Total_Net_Emissions,
         ]
 
@@ -498,8 +689,102 @@ class TestComputeAllSectorsLmdiCumulative:
             lmdi_names.Industrial_Process,
             lmdi_names.Other_Gases,
             lmdi_names.Land_Use,
+            lmdi_names.Fossil_Energy_CCS,
+            lmdi_names.Total_CDR,
             lmdi_names.Total_Net_Emissions,
         ]
 
         actual_order = list(result.index)
         assert actual_order == expected_order
+
+
+class TestAllSectorsNetInvariant:
+    """Regression tests pinning the correct net-emissions accounting.
+
+    These would have caught the biomass CDR double-counting, the fossil-industrial
+    CCS double-subtraction, and the cumulative fossil-energy CCS gap. They are the
+    load-bearing tests because every Excel fixture has CCS = 0.
+    """
+
+    def _levels_sum_equals_reported_net(self, df):
+        result = compute_all_sectors_emissions(df)
+        rdata = result.data
+        idata = df.data
+
+        for year in sorted(idata["year"].unique()):
+            def rget(var):
+                v = rdata[(rdata["variable"] == var) & (rdata["year"] == year)]["value"]
+                return v.values[0] if len(v) else 0.0
+
+            def iget(var):
+                v = idata[(idata["variable"] == var) & (idata["year"] == year)]["value"]
+                return v.values[0] if len(v) else 0.0
+
+            co2_sum = (
+                rget("Net Fossil Carbon")
+                + rget("Net Industrial Carbon")
+                + rget("Emissions|CO2|Land Use")
+                + rget("Carbon Dioxide Removal")
+            )
+            expected = (
+                iget(input_variables.EMISSIONS_CO2_ENERGY_AND_INDUSTRIAL_PROCESSES)
+                + iget(input_variables.EMISSIONS_CO2_AFOLU)
+            )
+            assert np.isclose(co2_sum, expected, rtol=1e-9), (
+                f"Year {year}: NFC+NIC+LU+CDR={co2_sum} != EIP+AFOLU={expected}"
+            )
+
+    def test_levels_invariant_single_year(self, test_dataframe):
+        """NFC + NIC + Land Use + CDR == EIP + AFOLU (single year, nonzero CCS)."""
+        self._levels_sum_equals_reported_net(test_dataframe)
+
+    def test_levels_invariant_deep_mitigation(self, multi_year_beccs_dataframe):
+        """Same identity across a multi-year path with nonzero fossil AND biomass CCS."""
+        self._levels_sum_equals_reported_net(multi_year_beccs_dataframe)
+
+    def test_cumulative_total_matches_true_net(self, multi_year_beccs_dataframe):
+        """Cumulative Total Net Emissions reconstructs the true net change.
+
+        Independent (non-circular) check: compare the table's Total Net Emissions
+        to the trapezoidally-integrated change in true net emissions
+        (EIP + AFOLU + Other Gases) computed straight from the raw inputs. This
+        exercises the gross-TFC Kaya chain plus the Fossil Energy CCS and CDR rows
+        together, on a CCS-heavy scenario.
+        """
+        from kaya_decomposition.utils import trapezoidal_integrate
+
+        base_year = 2020
+        result = compute_all_sectors_lmdi_cumulative(
+            multi_year_beccs_dataframe, base_year=base_year, periods=[(2020, 2050)],
+        )
+
+        # Fossil Energy CCS row is present and negative (abatement) for this fixture.
+        assert result.loc[lmdi_names.Fossil_Energy_CCS, "2020 to 2050"] < 0
+
+        idata = multi_year_beccs_dataframe.data
+        og = compute_other_gases_emissions(multi_year_beccs_dataframe).data
+        years = sorted(idata["year"].unique())
+
+        def iget(var, year):
+            v = idata[(idata["variable"] == var) & (idata["year"] == year)]["value"]
+            return v.values[0] if len(v) else 0.0
+
+        def ogget(year):
+            v = og[og["year"] == year]["value"]
+            return v.values[0] if len(v) else 0.0
+
+        net = {
+            y: iget(input_variables.EMISSIONS_CO2_ENERGY_AND_INDUSTRIAL_PROCESSES, y)
+            + iget(input_variables.EMISSIONS_CO2_AFOLU, y)
+            + ogget(y)
+            for y in years
+        }
+        diff = pd.DataFrame(
+            [{"year": y, "value": net[y] - net[base_year]} for y in years]
+        ).sort_values("year")
+        expected = trapezoidal_integrate(diff, 2020, 2050) / 1000
+
+        total = result.loc[lmdi_names.Total_Net_Emissions, "2020 to 2050"]
+        assert np.isclose(total, expected, rtol=1e-6), (
+            f"Total Net Emissions {total} != independent true net {expected}"
+        )

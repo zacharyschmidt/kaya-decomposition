@@ -10,6 +10,7 @@ from kaya_decomposition.lmdi_cumulative import (
 from kaya_decomposition.all_sectors import (
     compute_other_gases_emissions,
     compute_industrial_process_emissions,
+    compute_total_cdr,
     compute_all_sectors_emissions,
     compute_all_sectors_lmdi_cumulative,
 )
@@ -41,6 +42,7 @@ __all__ = [
     # All sectors analysis
     "compute_other_gases_emissions",
     "compute_industrial_process_emissions",
+    "compute_total_cdr",
     "compute_all_sectors_emissions",
     "compute_all_sectors_lmdi_cumulative",
     # Savings (two-scenario comparison over time)

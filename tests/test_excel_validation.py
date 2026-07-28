@@ -2315,6 +2315,8 @@ class TestAllSectorsLmdiVsExcel:
             lmdi_names.Industrial_Process,
             lmdi_names.Other_Gases,
             lmdi_names.Land_Use,
+            lmdi_names.Fossil_Energy_CCS,
+            lmdi_names.Total_CDR,
             lmdi_names.Total_Net_Emissions,
         ]
 
